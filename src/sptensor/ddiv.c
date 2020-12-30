@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
 /**
@@ -27,39 +27,39 @@
  *
  * The name "DotDiv" comes from the MATLAB operator "./".
  */
-int ptiSparseTensorDotDiv(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y)
+int sptSparseTensorDotDiv(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y)
 {
-    ptiNnzIndex i, j;
+    sptNnzIndex i, j;
     int result;
     /* Ensure X and Y are in same shape */
     if(Y->nmodes != X->nmodes) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns DotDiv", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns DotDiv", "shape mismatch");
     }
     for(i = 0; i < X->nmodes; ++i) {
         if(Y->ndims[i] != X->ndims[i]) {
-            pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns DotDiv", "shape mismatch");
+            spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns DotDiv", "shape mismatch");
         }
     }
 
-    ptiNewSparseTensor(Z, X->nmodes, X->ndims);
+    sptNewSparseTensor(Z, X->nmodes, X->ndims);
 
     /* Multiply elements one by one, assume indices are ordered */
     i = 0;
     j = 0;
     while(i < X->nnz && j < Y->nnz) {
-        int compare = pti_SparseTensorCompareIndices(X, i, Y, j);
+        int compare = spt_SparseTensorCompareIndices(X, i, Y, j);
 
         if(compare > 0) {
             ++j;
         } else if(compare < 0) {
             ++i;
         } else {
-            for(ptiIndex mode = 0; mode < X->nmodes; ++mode) {
-                result = ptiAppendIndexVector(&Z->inds[mode], X->inds[mode].data[i] * Y->inds[mode].data[j]);
-                pti_CheckError(result, "SpTns DotDiv", NULL);
+            for(sptIndex mode = 0; mode < X->nmodes; ++mode) {
+                result = sptAppendIndexVector(&Z->inds[mode], X->inds[mode].data[i] * Y->inds[mode].data[j]);
+                spt_CheckError(result, "SpTns DotDiv", NULL);
             }
-            result = ptiAppendValueVector(&Z->values, X->values.data[i] / Y->values.data[j]);
-            pti_CheckError(result, "SpTns DotDiv", NULL);
+            result = sptAppendValueVector(&Z->values, X->values.data[i] / Y->values.data[j]);
+            spt_CheckError(result, "SpTns DotDiv", NULL);
 
             ++Z->nnz;
             ++i;

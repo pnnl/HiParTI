@@ -16,10 +16,11 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 #include <stdlib.h>
 #include <string.h>
+#include <numa.h>
 
 /**
  * Create a new sparse tensor
@@ -27,8 +28,8 @@
  * @param nmodes number of modes the tensor will have
  * @param ndims  the dimension of each mode the tensor will have
  */
-int ptiNewSparseTensor(ptiSparseTensor *tsr, ptiIndex nmodes, const ptiIndex ndims[]) {
-    ptiIndex i;
+int sptNewSparseTensor(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[]) {
+    sptIndex i;
     int result;
     tsr->nmodes = nmodes;
     tsr->sortorder = malloc(nmodes * sizeof tsr->sortorder[0]);
@@ -36,17 +37,89 @@ int ptiNewSparseTensor(ptiSparseTensor *tsr, ptiIndex nmodes, const ptiIndex ndi
         tsr->sortorder[i] = i;
     }
     tsr->ndims = malloc(nmodes * sizeof *tsr->ndims);
-    pti_CheckOSError(!tsr->ndims, "SpTns New");
+    spt_CheckOSError(!tsr->ndims, "SpTns New");
     memcpy(tsr->ndims, ndims, nmodes * sizeof *tsr->ndims);
     tsr->nnz = 0;
     tsr->inds = malloc(nmodes * sizeof *tsr->inds);
-    pti_CheckOSError(!tsr->inds, "SpTns New");
+    spt_CheckOSError(!tsr->inds, "SpTns New");
     for(i = 0; i < nmodes; ++i) {
-        result = ptiNewIndexVector(&tsr->inds[i], 0, 0);
-        pti_CheckError(result, "SpTns New", NULL);
+        result = sptNewIndexVector(&tsr->inds[i], 0, 0);
+        spt_CheckError(result, "SpTns New", NULL);
     }
-    result = ptiNewValueVector(&tsr->values, 0, 0);
-    pti_CheckError(result, "SpTns New", NULL);
+    result = sptNewValueVector(&tsr->values, 0, 0);
+    spt_CheckError(result, "SpTns New", NULL);
+    return 0;
+}
+
+// Allocate memory with numa
+int sptNewSparseTensorNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], int numa_node) {
+    sptIndex i;
+    int result;
+    tsr->nmodes = nmodes;
+    tsr->sortorder = numa_alloc_onnode(nmodes * sizeof tsr->sortorder[0], numa_node);
+    for(i = 0; i < nmodes; ++i) {
+        tsr->sortorder[i] = i;
+    }
+    tsr->ndims = numa_alloc_onnode(nmodes * sizeof *tsr->ndims, numa_node);
+    spt_CheckOSError(!tsr->ndims, "SpTns New");
+    memcpy(tsr->ndims, ndims, nmodes * sizeof *tsr->ndims);
+    tsr->nnz = 0;
+    tsr->inds = numa_alloc_onnode(nmodes * sizeof *tsr->inds, numa_node);
+    spt_CheckOSError(!tsr->inds, "SpTns New");
+    for(i = 0; i < nmodes; ++i) {
+        result = sptNewIndexVectorNuma(&tsr->inds[i], 0, 0, numa_node);
+        spt_CheckError(result, "SpTns New", NULL);
+    }
+    result = sptNewValueVectorNuma(&tsr->values, 0, 0, numa_node);
+    spt_CheckError(result, "SpTns New", NULL);
+    return 0;
+}
+
+// Allocate memory with size and numa
+int sptNewSparseTensorWithSizeNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], int numa_node, unsigned long long size) {
+    sptIndex i;
+    int result;
+    tsr->nmodes = nmodes;
+    tsr->sortorder = numa_alloc_onnode(nmodes * sizeof tsr->sortorder[0], numa_node);
+    for(i = 0; i < nmodes; ++i) {
+        tsr->sortorder[i] = i;
+    }
+    tsr->ndims = numa_alloc_onnode(nmodes * sizeof *tsr->ndims, numa_node);
+    //spt_CheckOSError(!tsr->ndims, "SpTns New");
+    memcpy(tsr->ndims, ndims, nmodes * sizeof *tsr->ndims);
+    tsr->nnz = size;
+    tsr->inds = numa_alloc_onnode(nmodes * sizeof *tsr->inds, numa_node);
+    //spt_CheckOSError(!tsr->inds, "SpTns New");
+    for(i = 0; i < nmodes; ++i) {
+        result = sptNewIndexVectorNuma(&tsr->inds[i], size, size, numa_node);
+        //spt_CheckError(result, "SpTns New", NULL);
+    }
+    result = sptNewValueVectorNuma(&tsr->values, size, size, numa_node);
+    //spt_CheckError(result, "SpTns New", NULL);
+    return 0;
+}
+
+// Allocate memory with size
+int sptNewSparseTensorWithSize(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], unsigned long long size) {
+    sptIndex i;
+    int result;
+    tsr->nmodes = nmodes;
+    tsr->sortorder = malloc(nmodes * sizeof tsr->sortorder[0]);
+    for(i = 0; i < nmodes; ++i) {
+        tsr->sortorder[i] = i;
+    }
+    tsr->ndims = malloc(nmodes * sizeof *tsr->ndims);
+    //spt_CheckOSError(!tsr->ndims, "SpTns New");
+    memcpy(tsr->ndims, ndims, nmodes * sizeof *tsr->ndims);
+    tsr->nnz = size;
+    tsr->inds = malloc(nmodes * sizeof *tsr->inds);
+    //spt_CheckOSError(!tsr->inds, "SpTns New");
+    for(i = 0; i < nmodes; ++i) {
+        result = sptNewIndexVector(&tsr->inds[i], size, size);
+        //spt_CheckError(result, "SpTns New", NULL);
+    }
+    result = sptNewValueVector(&tsr->values, size, size);
+    //spt_CheckError(result, "SpTns New", NULL);
     return 0;
 }
 
@@ -55,24 +128,24 @@ int ptiNewSparseTensor(ptiSparseTensor *tsr, ptiIndex nmodes, const ptiIndex ndi
  * @param[out] dest a pointer to an uninitialized sparse tensor
  * @param[in]  src  a pointer to a valid sparse tensor
  */
-int ptiCopySparseTensor(ptiSparseTensor *dest, const ptiSparseTensor *src, int const nt) {
-    ptiIndex i;
+int sptCopySparseTensor(sptSparseTensor *dest, const sptSparseTensor *src, int const nt) {
+    sptIndex i;
     int result;
     dest->nmodes = src->nmodes;
     dest->sortorder = malloc(src->nmodes * sizeof src->sortorder[0]);
     memcpy(dest->sortorder, src->sortorder, src->nmodes * sizeof src->sortorder[0]);
     dest->ndims = malloc(dest->nmodes * sizeof *dest->ndims);
-    pti_CheckOSError(!dest->ndims, "SpTns Copy");
+    spt_CheckOSError(!dest->ndims, "SpTns Copy");
     memcpy(dest->ndims, src->ndims, src->nmodes * sizeof *src->ndims);
     dest->nnz = src->nnz;
     dest->inds = malloc(dest->nmodes * sizeof *dest->inds);
-    pti_CheckOSError(!dest->inds, "SpTns Copy");
+    spt_CheckOSError(!dest->inds, "SpTns Copy");
     for(i = 0; i < dest->nmodes; ++i) {
-        result = ptiCopyIndexVector(&dest->inds[i], &src->inds[i], nt);
-        pti_CheckError(result, "SpTns Copy", NULL);
+        result = sptCopyIndexVector(&dest->inds[i], &src->inds[i], nt);
+        spt_CheckError(result, "SpTns Copy", NULL);
     }
-    result = ptiCopyValueVector(&dest->values, &src->values, nt);
-    pti_CheckError(result, "SpTns Copy", NULL);
+    result = sptCopyValueVector(&dest->values, &src->values, nt);
+    spt_CheckError(result, "SpTns Copy", NULL);
     return 0;
 }
 
@@ -80,52 +153,52 @@ int ptiCopySparseTensor(ptiSparseTensor *dest, const ptiSparseTensor *src, int c
  * Release any memory the sparse tensor is holding
  * @param tsr the tensor to release
  */
-void ptiFreeSparseTensor(ptiSparseTensor *tsr) {
-    ptiIndex i;
+void sptFreeSparseTensor(sptSparseTensor *tsr) {
+    sptIndex i;
     for(i = 0; i < tsr->nmodes; ++i) {
-        ptiFreeIndexVector(&tsr->inds[i]);
+        sptFreeIndexVector(&tsr->inds[i]);
     }
     free(tsr->sortorder);
     free(tsr->ndims);
     free(tsr->inds);
-    ptiFreeValueVector(&tsr->values);
+    sptFreeValueVector(&tsr->values);
     tsr->nmodes = 0;
     tsr->nmodes = 0;
 }
 
 
-double SparseTensorFrobeniusNormSquared(ptiSparseTensor const * const ptien)
+double SparseTensorFrobeniusNormSquared(sptSparseTensor const * const spten) 
 {
   double norm = 0;
-  ptiValue const * const restrict vals = ptien->values.data;
+  sptValue const * const restrict vals = spten->values.data;
   
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
   #pragma omp parallel for reduction(+:norm)
 #endif
-  for(ptiNnzIndex n=0; n < ptien->nnz; ++n) {
+  for(sptNnzIndex n=0; n < spten->nnz; ++n) {
     norm += vals[n] * vals[n];
   }
   return norm;
 }
 
 
-int pti_DistSparseTensor(ptiSparseTensor * tsr,
+int spt_DistSparseTensor(sptSparseTensor * tsr,
     int const nthreads,
-    ptiNnzIndex * const dist_nnzs,
-    ptiIndex * dist_nrows) {
+    sptNnzIndex * const dist_nnzs,
+    sptIndex * dist_nrows) {
 
-    ptiNnzIndex global_nnz = tsr->nnz;
-    ptiNnzIndex aver_nnz = global_nnz / nthreads;
-    memset(dist_nnzs, 0, nthreads*sizeof(ptiNnzIndex));
-    memset(dist_nrows, 0, nthreads*sizeof(ptiIndex));
+    sptNnzIndex global_nnz = tsr->nnz;
+    sptNnzIndex aver_nnz = global_nnz / nthreads;
+    memset(dist_nnzs, 0, nthreads*sizeof(sptNnzIndex));
+    memset(dist_nrows, 0, nthreads*sizeof(sptIndex));
 
-    ptiSparseTensorSortIndex(tsr, 0, 1);
-    ptiIndex * ind0 = tsr->inds[0].data;
+    sptSparseTensorSortIndex(tsr, 0, 1);
+    sptIndex * ind0 = tsr->inds[0].data;
 
     int ti = 0;
     dist_nnzs[0] = 1;
     dist_nrows[0] = 1;
-    for(ptiNnzIndex x=1; x<global_nnz; ++x) {
+    for(sptNnzIndex x=1; x<global_nnz; ++x) {
         if(ind0[x] == ind0[x-1]) {
             ++ dist_nnzs[ti];
         } else if (ind0[x] > ind0[x-1]) {
@@ -138,7 +211,7 @@ int pti_DistSparseTensor(ptiSparseTensor * tsr,
                 ++ dist_nrows[ti];
             }
         } else {
-            pti_CheckError(PTIERR_VALUE_ERROR, "SpTns Dist", "tensor unsorted on mode-0");
+            spt_CheckError(SPTERR_VALUE_ERROR, "SpTns Dist", "tensor unsorted on mode-0");
         }
     }
 
@@ -147,21 +220,21 @@ int pti_DistSparseTensor(ptiSparseTensor * tsr,
 }
 
 
-int pti_DistSparseTensorFixed(ptiSparseTensor * tsr,
+int spt_DistSparseTensorFixed(sptSparseTensor * tsr,
     int const nthreads,
-    ptiNnzIndex * const dist_nnzs,
-    ptiNnzIndex * dist_nrows) {
+    sptNnzIndex * const dist_nnzs,
+    sptNnzIndex * dist_nrows) {
 
-    ptiNnzIndex global_nnz = tsr->nnz;
-    ptiNnzIndex aver_nnz = global_nnz / nthreads;
-    memset(dist_nnzs, 0, nthreads*sizeof(ptiNnzIndex));
+    sptNnzIndex global_nnz = tsr->nnz;
+    sptNnzIndex aver_nnz = global_nnz / nthreads;
+    memset(dist_nnzs, 0, nthreads*sizeof(sptNnzIndex));
 
-    ptiSparseTensorSortIndex(tsr, 0, 1);
-    ptiIndex * ind0 = tsr->inds[0].data;
+    sptSparseTensorSortIndex(tsr, 0, 1);
+    sptIndex * ind0 = tsr->inds[0].data;
 
     int ti = 0;
     dist_nnzs[0] = 1;
-    for(ptiNnzIndex x=1; x<global_nnz; ++x) {
+    for(sptNnzIndex x=1; x<global_nnz; ++x) {
         if(ind0[x] == ind0[x-1]) {
             ++ dist_nnzs[ti];
         } else if (ind0[x] > ind0[x-1]) {
@@ -172,7 +245,7 @@ int pti_DistSparseTensorFixed(ptiSparseTensor * tsr,
                 ++ dist_nnzs[ti];
             }
         } else {
-            pti_CheckError(PTIERR_VALUE_ERROR, "SpTns Dist", "tensor unsorted on mode-0");
+            spt_CheckError(SPTERR_VALUE_ERROR, "SpTns Dist", "tensor unsorted on mode-0");
         }
     }
 
@@ -180,17 +253,17 @@ int pti_DistSparseTensorFixed(ptiSparseTensor * tsr,
 }
 
 
-int pti_SparseTensorDumpAllSplits(const pti_SplitResult * splits, ptiIndex const nsplits, FILE *fp) {
-    ptiIndex i = 0;
+int spt_SparseTensorDumpAllSplits(const spt_SplitResult * splits, sptIndex const nsplits, FILE *fp) {
+    sptIndex i = 0;
     for(i=0; i<nsplits; ++i) {
     // while(split_i) {
-        const pti_SplitResult *split_i = splits + i;
-        printf("Printing split #%"HIPARTI_PRI_INDEX " of %"HIPARTI_PRI_INDEX "lu:\n", i + 1, nsplits);
+        const spt_SplitResult *split_i = splits + i;
+        printf("Printing split #%"PARTI_PRI_INDEX " of %"PARTI_PRI_INDEX "lu:\n", i + 1, nsplits);
         printf("Index: \n");
-        ptiDumpIndexArray(split_i->inds_low, split_i->tensor.nmodes, fp);
+        sptDumpIndexArray(split_i->inds_low, split_i->tensor.nmodes, fp);
         printf(" .. \n");
-        ptiDumpIndexArray(split_i->inds_high, split_i->tensor.nmodes, fp);
-        ptiDumpSparseTensor(&split_i->tensor, 0, fp);
+        sptDumpIndexArray(split_i->inds_high, split_i->tensor.nmodes, fp);
+        sptDumpSparseTensor(&split_i->tensor, 0, fp);
         printf("\n");
         fflush(fp);
         // ++ i;
@@ -207,11 +280,11 @@ int pti_SparseTensorDumpAllSplits(const pti_SplitResult * splits, ptiIndex const
  * @param[out] map_inds is the renumbering mapping
  *
  */
-void ptiSparseTensorShuffleIndices(ptiSparseTensor *tsr, ptiIndex ** map_inds) {
+void sptSparseTensorShuffleIndices(sptSparseTensor *tsr, sptIndex ** map_inds) {
     /* Renumber nonzero elements */
-    ptiIndex tmp_ind;
-    for(ptiNnzIndex z = 0; z < tsr->nnz; ++z) {
-        for(ptiIndex m = 0; m < tsr->nmodes; ++m) {
+    sptIndex tmp_ind;
+    for(sptNnzIndex z = 0; z < tsr->nnz; ++z) {
+        for(sptIndex m = 0; m < tsr->nmodes; ++m) {
             tmp_ind = tsr->inds[m].data[z];
             tsr->inds[m].data[z] = map_inds[m][tmp_ind];
         }
@@ -227,32 +300,32 @@ void ptiSparseTensorShuffleIndices(ptiSparseTensor *tsr, ptiIndex ** map_inds) {
  * @param[out] map_inds is the renumbering mapping
  *
  */
-void ptiSparseTensorInvMap(ptiSparseTensor *tsr, ptiIndex ** map_inds)
+void sptSparseTensorInvMap(sptSparseTensor *tsr, sptIndex ** map_inds)
 {
-    ptiIndex ** tmp_map_inds = (ptiIndex **)malloc(tsr->nmodes * sizeof(ptiIndex**));
-    pti_CheckOSError(!tmp_map_inds, "ptiSparseTensorInvMap");
-    for(ptiIndex m = 0; m < tsr->nmodes; ++m) {
-        tmp_map_inds[m] = (ptiIndex *)malloc(tsr->ndims[m] * sizeof (ptiIndex));
-        pti_CheckError(!tmp_map_inds[m], "ptiSparseTensorInvMap", NULL);
+    sptIndex ** tmp_map_inds = (sptIndex **)malloc(tsr->nmodes * sizeof(sptIndex**));
+    spt_CheckOSError(!tmp_map_inds, "sptSparseTensorInvMap");
+    for(sptIndex m = 0; m < tsr->nmodes; ++m) {
+        tmp_map_inds[m] = (sptIndex *)malloc(tsr->ndims[m] * sizeof (sptIndex));
+        spt_CheckError(!tmp_map_inds[m], "sptSparseTensorInvMap", NULL);
     }
 
-    ptiIndex tmp_ind;
-    for(ptiIndex m = 0; m < tsr->nmodes; ++m) {
-        ptiIndex loc = 0;
-        for(ptiNnzIndex i = 0; i < tsr->ndims[m]; ++i) {
+    sptIndex tmp_ind;
+    for(sptIndex m = 0; m < tsr->nmodes; ++m) {
+        sptIndex loc = 0;
+        for(sptNnzIndex i = 0; i < tsr->ndims[m]; ++i) {
             tmp_ind = map_inds[m][i];
             tmp_map_inds[m][tmp_ind] = loc;
             ++ loc;
         }
     }
 
-    for(ptiIndex m = 0; m < tsr->nmodes; ++m) {
-        for(ptiNnzIndex i = 0; i < tsr->ndims[m]; ++i) {
+    for(sptIndex m = 0; m < tsr->nmodes; ++m) {
+        for(sptNnzIndex i = 0; i < tsr->ndims[m]; ++i) {
             map_inds[m][i] = tmp_map_inds[m][i];
         }
     }
 
-    for(ptiIndex m = 0; m < tsr->nmodes; ++m) {
+    for(sptIndex m = 0; m < tsr->nmodes; ++m) {
         free(tmp_map_inds[m]);
     }
     free(tmp_map_inds);
@@ -267,23 +340,23 @@ void ptiSparseTensorInvMap(ptiSparseTensor *tsr, ptiIndex ** map_inds)
  * @param[out] mode_order is the new order of modes
  *
  */
-void ptiSparseTensorShuffleModes(ptiSparseTensor *tsr, ptiIndex * mode_order)
+void sptSparseTensorShuffleModes(sptSparseTensor *tsr, sptIndex * mode_order) 
 {
     /// Use temporary space to save the original indices and ndims, ensuring the correct shuffling.
-    ptiIndex ** tmp_ind = (ptiIndex **)malloc(tsr->nmodes * sizeof(ptiIndex *));
-    ptiIndex * tmp_ndims = (ptiIndex*)malloc(tsr->nmodes * sizeof(ptiIndex));
-    for(ptiIndex m = 0; m < tsr->nmodes; ++m) {
+    sptIndex ** tmp_ind = (sptIndex **)malloc(tsr->nmodes * sizeof(sptIndex *));
+    sptIndex * tmp_ndims = (sptIndex*)malloc(tsr->nmodes * sizeof(sptIndex));
+    for(sptIndex m = 0; m < tsr->nmodes; ++m) {
         tmp_ind[m] = tsr->inds[m].data;
         tmp_ndims[m] = tsr->ndims[m];
     }
     
-    for(ptiIndex m = 0; m < tsr->nmodes; ++m) {
-        ptiIndex pm = mode_order[m];
+    for(sptIndex m = 0; m < tsr->nmodes; ++m) {
+        sptIndex pm = mode_order[m];
         
         tsr->ndims[m] = tmp_ndims[pm];
-        tsr->inds[m].data = tmp_ind[m];
+        tsr->inds[m].data = tmp_ind[pm];
 
-        tsr->sortorder[m] = m;
+        tsr->sortorder[m] = m;  // set to natural order
     }
     
     free(tmp_ind);

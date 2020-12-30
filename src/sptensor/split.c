@@ -17,12 +17,12 @@
 */
 
 #include <assert.h>
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <stdio.h>
 #include "sptensor.h"
 
 
-static int pti_FindSplitStep(const ptiSparseTensor *tsr, ptiNnzIndex cut_point, int direction) {
+static int spt_FindSplitStep(const sptSparseTensor *tsr, sptNnzIndex cut_point, int direction) {
     if(direction) {
         if(cut_point == 0) {
             ++cut_point;
@@ -40,55 +40,55 @@ static int pti_FindSplitStep(const ptiSparseTensor *tsr, ptiNnzIndex cut_point, 
     return cut_point;
 }
 
-static void pti_RotateMode(ptiSparseTensor *tsr) {
+static void spt_RotateMode(sptSparseTensor *tsr) {
     if(tsr->nmodes == 0) {
         return;
     }
 
-    ptiIndexVector inds0 = tsr->inds[0];
-    memmove(&tsr->inds[0], &tsr->inds[1], (tsr->nmodes-1) * sizeof (ptiIndexVector));
+    sptIndexVector inds0 = tsr->inds[0];
+    memmove(&tsr->inds[0], &tsr->inds[1], (tsr->nmodes-1) * sizeof (sptIndexVector));
     tsr->inds[tsr->nmodes-1] = inds0;
 }
 
 /**
  * Split a sparse tensor into several sub-tensors.
  *
- * Call pti_StartSplitSparseTensor to start a split operation.
- * Call pti_SplitSparseTensor to get the next result from this split operation.
- * Call pti_FinishSplitSparseTensor to finish this split operation.
+ * Call spt_StartSplitSparseTensor to start a split operation.
+ * Call spt_SplitSparseTensor to get the next result from this split operation.
+ * Call spt_FinishSplitSparseTensor to finish this split operation.
  *
  * @param[out] handle            The handle of this split operation
  * @param[in]  tsr               The sparse tensor to split from
  * @param[in]  max_size_by_mode  The number of cuts at each mode, length `tsr->nmodes`
  */
-int pti_StartSplitSparseTensor(pti_SplitHandle *handle, const ptiSparseTensor *tsr, const ptiIndex max_size_by_mode[]) {
+int spt_StartSplitSparseTensor(spt_SplitHandle *handle, const sptSparseTensor *tsr, const sptIndex max_size_by_mode[]) {
     int result = 0;
 
     *handle = malloc(sizeof **handle);
     (*handle)->nsplits = 0;
-    (*handle)->tsr = malloc((tsr->nmodes + 1) * sizeof (ptiSparseTensor));
-    pti_CheckOSError((*handle)->tsr == NULL, "SpTns Splt");
-    (*handle)->max_size_by_mode = malloc(5 * tsr->nmodes * sizeof (ptiIndex));
-    pti_CheckOSError((*handle)->max_size_by_mode == NULL, "SpTns Splt");
+    (*handle)->tsr = malloc((tsr->nmodes + 1) * sizeof (sptSparseTensor));
+    spt_CheckOSError((*handle)->tsr == NULL, "SpTns Splt");
+    (*handle)->max_size_by_mode = malloc(5 * tsr->nmodes * sizeof (sptIndex));
+    spt_CheckOSError((*handle)->max_size_by_mode == NULL, "SpTns Splt");
     (*handle)->inds_low = (*handle)->max_size_by_mode + tsr->nmodes;
     (*handle)->inds_high = (*handle)->max_size_by_mode + 2 * tsr->nmodes;
     (*handle)->level = 0;
     (*handle)->resume_branch = malloc((tsr->nmodes + 1) * sizeof (int));
-    pti_CheckOSError((*handle)->resume_branch == NULL, "SpTns Splt");
+    spt_CheckOSError((*handle)->resume_branch == NULL, "SpTns Splt");
     (*handle)->cut_idx = (*handle)->max_size_by_mode + 3 * tsr->nmodes;
     (*handle)->cut_low = (*handle)->max_size_by_mode + 4 * tsr->nmodes;
 
-    result = ptiCopySparseTensor(&(*handle)->tsr[0], tsr, 1);
-    pti_CheckError(result, "SpTns Splt", NULL);
+    result = sptCopySparseTensor(&(*handle)->tsr[0], tsr, 1);
+    spt_CheckError(result, "SpTns Splt", NULL);
 
     if(max_size_by_mode != NULL) {
-        memcpy((*handle)->max_size_by_mode, max_size_by_mode, tsr->nmodes * sizeof (ptiIndex));
-        ptiIndex m;
+        memcpy((*handle)->max_size_by_mode, max_size_by_mode, tsr->nmodes * sizeof (sptIndex));
+        sptIndex m;
         for(m = 0; m + 1 < tsr->nmodes; ++m) {
             (*handle)->max_size_by_mode[m + 1] *= max_size_by_mode[m];
         }
     } else {
-        memset((*handle)->max_size_by_mode, 0, tsr->nmodes * sizeof (ptiIndex));
+        memset((*handle)->max_size_by_mode, 0, tsr->nmodes * sizeof (sptIndex));
     }
 
     (*handle)->resume_branch[0] = 0;
@@ -99,33 +99,33 @@ int pti_StartSplitSparseTensor(pti_SplitHandle *handle, const ptiSparseTensor *t
 /**
  * Split a sparse tensor into several sub-tensors.
  *
- * Call pti_StartSplitSparseTensor to start a split operation.
- * Call pti_SplitSparseTensor to get the next result from this split operation.
- * Call pti_FinishSplitSparseTensor to finish this split operation.
+ * Call spt_StartSplitSparseTensor to start a split operation.
+ * Call spt_SplitSparseTensor to get the next result from this split operation.
+ * Call spt_FinishSplitSparseTensor to finish this split operation.
  *
- * @param[out] dest       A pointer to an uninitialized ptiSparseTensor, to hold the sub-tensor output
+ * @param[out] dest       A pointer to an uninitialized sptSparseTensor, to hold the sub-tensor output
  * @param[out] inds_low   The low index limit of this subtensor at each mode, length `dest->nmodes`
  * @param[out] inds_high  The high index limit of this subtensor at each mode, length `dest->nmodes`
  * @param      handle     The handle to this split operation
- * @return                Zero on success, `PTIERR_NO_MORE` when there is no more splits, or any other values to indicate an error
+ * @return                Zero on success, `SPTERR_NO_MORE` when there is no more splits, or any other values to indicate an error
  */
-int pti_SplitSparseTensor(ptiSparseTensor *dest, ptiIndex *inds_low, ptiIndex *inds_high, pti_SplitHandle handle) {
+int spt_SplitSparseTensor(sptSparseTensor *dest, sptIndex *inds_low, sptIndex *inds_high, spt_SplitHandle handle) {
     int result;
 
     for(;;) {
-        ptiSparseTensor *curtsr = &handle->tsr[handle->level];
+        sptSparseTensor *curtsr = &handle->tsr[handle->level];
 
         if(handle->resume_branch[handle->level] == 1) {
             if(handle->cut_low[handle->level] < curtsr->nnz) {
-                ptiNnzIndex cut_high_est = handle->cut_low[handle->level] + handle->max_size_by_mode[handle->level];
-                ptiNnzIndex cut_high;
+                sptNnzIndex cut_high_est = handle->cut_low[handle->level] + handle->max_size_by_mode[handle->level];
+                sptNnzIndex cut_high;
                 if(cut_high_est < curtsr->nnz) {
                     /* Find a previous step on the index */
-                    cut_high = pti_FindSplitStep(curtsr, cut_high_est, 0);
+                    cut_high = spt_FindSplitStep(curtsr, cut_high_est, 0);
                     if(cut_high <= handle->cut_low[handle->level]) {
                         /* Find a next step instead */
-                        cut_high = pti_FindSplitStep(curtsr, cut_high_est, 1);
-                        fprintf(stderr, "[SpTns Splt] cut #%zu size may exceed limit (%" HIPARTI_PRI_NNZ_INDEX " > %zu)\n", handle->nsplits + 1, cut_high - handle->cut_low[handle->level], handle->max_size_by_mode[handle->level]);
+                        cut_high = spt_FindSplitStep(curtsr, cut_high_est, 1);
+                        fprintf(stderr, "[SpTns Splt] cut #%zu size may exceed limit (%" PARTI_PRI_NNZ_INDEX " > %zu)\n", handle->nsplits + 1, cut_high - handle->cut_low[handle->level], handle->max_size_by_mode[handle->level]);
                     }
                 } else {
                     cut_high = curtsr->nnz;
@@ -133,17 +133,17 @@ int pti_SplitSparseTensor(ptiSparseTensor *dest, ptiIndex *inds_low, ptiIndex *i
                 assert(cut_high > handle->cut_low[handle->level]);
 
                 /* Extract this cut into a new subtensor */
-                ptiSparseTensor *subtsr = &handle->tsr[handle->level + 1];
-                result = ptiNewSparseTensor(subtsr, curtsr->nmodes, curtsr->ndims);
-                ptiIndex m;
+                sptSparseTensor *subtsr = &handle->tsr[handle->level + 1];
+                result = sptNewSparseTensor(subtsr, curtsr->nmodes, curtsr->ndims);
+                sptIndex m;
                 for(m = 0; m < subtsr->nmodes; ++m) {
-                    result = ptiResizeIndexVector(&subtsr->inds[m], cut_high - handle->cut_low[handle->level]);
-                    pti_CheckError(result, "SpTns PartSplt", NULL);
-                    memcpy(subtsr->inds[m].data, &curtsr->inds[m].data[handle->cut_low[handle->level]], (cut_high - handle->cut_low[handle->level]) * sizeof (ptiIndex));
+                    result = sptResizeIndexVector(&subtsr->inds[m], cut_high - handle->cut_low[handle->level]);
+                    spt_CheckError(result, "SpTns PartSplt", NULL);
+                    memcpy(subtsr->inds[m].data, &curtsr->inds[m].data[handle->cut_low[handle->level]], (cut_high - handle->cut_low[handle->level]) * sizeof (sptIndex));
                 }
-                result = ptiResizeValueVector(&subtsr->values, cut_high - handle->cut_low[handle->level]);
-                pti_CheckError(result, "SpTns PartSplt", NULL);
-                memcpy(subtsr->values.data, &curtsr->values.data[handle->cut_low[handle->level]], (cut_high - handle->cut_low[handle->level]) * sizeof (ptiValue));
+                result = sptResizeValueVector(&subtsr->values, cut_high - handle->cut_low[handle->level]);
+                spt_CheckError(result, "SpTns PartSplt", NULL);
+                memcpy(subtsr->values.data, &curtsr->values.data[handle->cut_low[handle->level]], (cut_high - handle->cut_low[handle->level]) * sizeof (sptValue));
                 subtsr->nnz = cut_high - handle->cut_low[handle->level];
 
                 handle->inds_low[handle->level] = subtsr->inds[0].data[0];
@@ -151,23 +151,23 @@ int pti_SplitSparseTensor(ptiSparseTensor *dest, ptiIndex *inds_low, ptiIndex *i
 
                 handle->cut_low[handle->level] = cut_high;
 
-                pti_RotateMode(subtsr);
-                ptiSparseTensorSortIndex(subtsr, 1, 1);
+                spt_RotateMode(subtsr);
+                sptSparseTensorSortIndex(subtsr, 1, 1);
 
                 ++handle->level;
                 handle->resume_branch[handle->level] = 0;
                 continue;
             } else {
-                ptiFreeSparseTensor(curtsr);
+                sptFreeSparseTensor(curtsr);
                 if(handle->level == 0) {
-                    return PTIERR_NO_MORE;
+                    return SPTERR_NO_MORE;
                 }
                 --handle->level;
                 continue;
             }
         } else if(handle->resume_branch[handle->level] == 2) {
             if(handle->level == 0) {
-                return PTIERR_NO_MORE;
+                return SPTERR_NO_MORE;
             }
             --handle->level;
             continue;
@@ -177,10 +177,10 @@ int pti_SplitSparseTensor(ptiSparseTensor *dest, ptiIndex *inds_low, ptiIndex *i
 
         /* Do nothing with an empty tensor */
         if(curtsr->nnz == 0) {
-            ptiFreeSparseTensor(curtsr);
+            sptFreeSparseTensor(curtsr);
 
             if(handle->level == 0) {
-                return PTIERR_NO_MORE;
+                return SPTERR_NO_MORE;
             }
             --handle->level;
             continue;
@@ -192,10 +192,10 @@ int pti_SplitSparseTensor(ptiSparseTensor *dest, ptiIndex *inds_low, ptiIndex *i
                 *dest = *curtsr;
             }
             if(inds_low) {
-                memcpy(inds_low, handle->inds_low, curtsr->nmodes * sizeof (ptiIndex));
+                memcpy(inds_low, handle->inds_low, curtsr->nmodes * sizeof (sptIndex));
             }
             if(inds_high) {
-                memcpy(inds_high, handle->inds_high, curtsr->nmodes * sizeof (ptiIndex));
+                memcpy(inds_high, handle->inds_high, curtsr->nmodes * sizeof (sptIndex));
             }
             ++handle->nsplits;
 
@@ -208,8 +208,8 @@ int pti_SplitSparseTensor(ptiSparseTensor *dest, ptiIndex *inds_low, ptiIndex *i
             handle->inds_low[handle->level] = curtsr->inds[0].data[0];
             handle->inds_high[handle->level] = curtsr->inds[0].data[curtsr->nnz - 1] + 1;
 
-            pti_RotateMode(curtsr);
-            ptiSparseTensorSortIndex(curtsr, 1, 1);
+            spt_RotateMode(curtsr);
+            sptSparseTensorSortIndex(curtsr, 1, 1);
             handle->tsr[handle->level + 1] = *curtsr;
 
             handle->resume_branch[handle->level] = 2;
@@ -229,13 +229,13 @@ int pti_SplitSparseTensor(ptiSparseTensor *dest, ptiIndex *inds_low, ptiIndex *i
 /**
  * Split a sparse tensor into several sub-tensors.
  *
- * Call pti_StartSplitSparseTensor to start a split operation.
- * Call pti_SplitSparseTensor to get the next result from this split operation.
- * Call pti_FinishSplitSparseTensor to finish this split operation.
+ * Call spt_StartSplitSparseTensor to start a split operation.
+ * Call spt_SplitSparseTensor to get the next result from this split operation.
+ * Call spt_FinishSplitSparseTensor to finish this split operation.
  *
  * @param handle  The handle to this split operation
  */
-void pti_FinishSplitSparseTensor(pti_SplitHandle handle) {
+void spt_FinishSplitSparseTensor(spt_SplitHandle handle) {
     free(handle->resume_branch);
     free(handle->max_size_by_mode);
     free(handle->tsr);

@@ -1,6 +1,7 @@
 # Requires
 cmake_minimum_required(VERSION 3.2)  # CMake 3.2 supports CUDA 7.0
-project(HiParTI)
+project(ParTI)
+
 
 # Enable unit test
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake-modules")
@@ -11,14 +12,14 @@ if(CODE_COVERAGE)
   APPEND_COVERAGE_COMPILER_FLAGS()
 endif()
 
-# Define build HiParTI library
+# Define build ParTI library
 option(BUILD_STATIC "Build static library" OFF)
 option(BUILD_SHARED "Build shared library" ON)
 
 # Define data types
-add_definitions(-DHIPARTI_INDEX_TYPEWIDTH=32)
-add_definitions(-DHIPARTI_VALUE_TYPEWIDTH=32)
-add_definitions(-DHIPARTI_ELEMENT_INDEX_TYPEWIDTH=8)
+add_definitions(-DPARTI_INDEX_TYPEWIDTH=32)
+add_definitions(-DPARTI_VALUE_TYPEWIDTH=32)
+add_definitions(-DPARTI_ELEMENT_INDEX_TYPEWIDTH=8)
 
 # Check for implementations
 option(USE_ICC "Use ICC" OFF)
@@ -28,16 +29,16 @@ option(USE_CUDA "Use NVIDIA CUDA library" OFF)
 option(USE_MPI "Use MPI" OFF)
 
 # Check for libraries
-option(USE_LAPACK "Use LAPACK library" ON)
-option(USE_BLAS "Use LAPACK library" ON)
-option(USE_OpenBLAS "Use OpenBLAS library" OFF)
+option(USE_LAPACK "Use LAPACK library" OFF)
+option(USE_BLAS "Use LAPACK library" OFF)
+option(USE_OpenBLAS "Use OpenBLAS library" ON)
 option(USE_MAGMA "Use MAGMA library" OFF)
 option(USE_MKL "Use Intel MKL library" OFF)
 
 # Check for debug mode
 if (DEFINED DEBUG)                                                     
   message("Building in DEBUG mode. Expect for plenty of prints.")
-  add_definitions(-DHIPARTI_DEBUG=${DEBUG})                   
+  add_definitions(-DPARTI_DEBUG=${DEBUG})                   
   set(CMAKE_BUILD_TYPE Debug)                        
 else()                     
   message("Building in RELEASE mode.")
@@ -46,13 +47,13 @@ endif()
 
 
 if(USE_MPI)
-    add_definitions(-DHIPARTI_USE_MPI)
+    add_definitions(-DPARTI_USE_MPI)
     set(CMAKE_C_COMPILER "${MPICC_PATH}" CACHE BOOL ON)
 endif()
 
 if(USE_CUDA)
     find_package(CUDA REQUIRED)
-    add_definitions(-DHIPARTI_USE_CUDA)
+    add_definitions(-DPARTI_USE_CUDA)
     link_libraries(${CUDA_cusparse_LIBRARY})
     link_libraries(${CUDA_cusolver_LIBRARY})
     if(DEFINED DEBUG)
@@ -62,9 +63,12 @@ if(USE_CUDA)
     endif()
 endif()
 
+# jw: For libnuma. Need to install and build libnuma separately and change the path
+include_directories("include")
+link_libraries("numa")
 
 if(USE_OPENMP)
-    add_definitions(-DHIPARTI_USE_OPENMP)
+    add_definitions(-DPARTI_USE_OPENMP)
     if(USE_ICC)
         if(DEFINED DEBUG)
             set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -Wall -Wextra -Wno-maybe-uninitialized -lrt -qopenmp -O0 -g -DADD_")
@@ -75,17 +79,17 @@ if(USE_OPENMP)
                 # -msse4 -ftree-vectorize -funroll-loops -fprefetch-loop-arrays -mfpmath=sse -ftree-vectorizer-verbose=2
                 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mmic -Wall -Wextra -Wno-maybe-uninitialized -lrt -qopenmp -O3 -DADD_")
             else()
-                set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -Wall -Wextra -Wno-maybe-uninitialized -lrt -qopenmp -O3 -DADD_")
+                set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99 -Wall -Wextra -Wno-maybe-uninitialized -lrt -qopenmp -O3 -DADD_ -lnuma")
                 # -msse4 -ftree-vectorize -funroll-loops -fprefetch-loop-arrays -mfpmath=sse -ftree-vectorizer-verbose=2
                 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-maybe-uninitialized -lrt -qopenmp -O3 -DADD_")
             endif()
         endif()
     else()
         if(DEFINED DEBUG)
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE -Wall -Wextra -Wno-maybe-uninitialized -lrt -fopenmp -O0 -g -DADD_")
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE -Wall -Wextra -Wno-maybe-uninitialized -lrt -fopenmp -O0 -g -DADD_")           
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-maybe-uninitialized -fopenmp -O0 -g -DADD_")
         else()
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE -Wall -Wextra -Wno-maybe-uninitialized -lrt -fopenmp -O3 -DADD_ -Wno-unused-parameter")
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE -Wall -Wextra -Wno-maybe-uninitialized -lrt -fopenmp -O3 -DADD_ -lnuma -Wno-unused-but-set-variable -Wno-unused-parameter -Wno-incompatible-pointer-types -Wno-unused-variable -Wno-sign-compare -Wno-return-type -Wno-unused-result")
             # -msse4 -ftree-vectorize -funroll-loops -fprefetch-loop-arrays -mfpmath=sse -ftree-vectorizer-verbose=2
             set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-maybe-uninitialized -lrt -fopenmp -O3 -DADD_")
         endif()
@@ -105,7 +109,7 @@ endif()
 
 if(USE_BLAS)
     find_package(BLAS)
-    add_definitions(-DHIPARTI_USE_BLAS)
+    add_definitions(-DPARTI_USE_BLAS)
     include_directories(${BLAS_INCLUDE_DIRS})
     link_libraries(${BLAS_LIBRARIES})
     if(${BLAS_FOUND})
@@ -117,7 +121,7 @@ endif()
 
 if(USE_LAPACK)
     find_package(LAPACK)
-    add_definitions(-DHIPARTI_USE_LAPACK)
+    add_definitions(-DPARTI_USE_LAPACK)
     include_directories(${LAPACK_INCLUDE_DIRS})
     link_libraries(${LAPACK_LIBRARIES})
     if(${LAPACK_FOUND})
@@ -131,7 +135,7 @@ if(USE_LAPACK)
     #     PATHS ${LAPACK_DIR}
     #     NO_DEFAULT_PATH
     # )
-    # add_definitions(-DHIPARTI_USE_LAPACK)
+    # add_definitions(-DPARTI_USE_LAPACK)
     # include_directories("${LAPACK_DIR}/LAPACKE/include" "${LAPACK_DIR}/CBLAS/include")
     # link_libraries("${LAPACK_DIR}/libcblas.a" "${LAPACK_DIR}/liblapack.a" "${LAPACK_DIR}/liblapacke.a" "${LAPACK_DIR}/librefblas.a" "${LAPACK_DIR}/libtmglib.a")
     # link_libraries(lapack blas)
@@ -144,7 +148,7 @@ if(USE_MAGMA)
         PATHS ${MAGMA_DIR}
         NO_DEFAULT_PATH
     )
-    add_definitions(-DHIPARTI_USE_MAGMA)
+    add_definitions(-DPARTI_USE_MAGMA)
     # get_filename_component(MAGMA_LIBDIR "${MAGMA_LIBRARIES}" DIRECTORY)
     # include_directories("${MAGMA_LIBDIR}/../include")
     # link_libraries(${MAGMA_LIBRARIES})
@@ -156,7 +160,7 @@ endif()
 
 if(USE_OpenBLAS)
     find_package(OpenBLAS REQUIRED)
-    add_definitions(-DHIPARTI_USE_OpenBLAS)
+    add_definitions(-DPARTI_USE_OpenBLAS)
     include_directories(${OpenBLAS_INCLUDE_DIRS})
     link_libraries(${OpenBLAS_LIBRARIES})
 endif()
@@ -169,7 +173,7 @@ if(USE_MKL)
         PATHS ${MKL_DIR}
         NO_DEFAULT_PATH
     )
-    add_definitions(-DHIPARTI_USE_MKL)
+    add_definitions(-DPARTI_USE_MKL)
     # include_directories(${MKL_INCLUDE_DIRS})
     # link_libraries(${MKL_LIBRARIES})
     get_filename_component(MKL_LIBDIR "${MKL_DIR}/lib/intel64" DIRECTORY)
@@ -185,33 +189,37 @@ include_directories("include")
 link_libraries("m")
 
 if(USE_CUDA)
-    file(GLOB_RECURSE HiParTI_SRC RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "src/*.c" "src/*.cu" "src/*.h" "include/*.h")
-    # MESSAGE( STATUS "HiParTI_SRC:         " ${HiParTI_SRC} )
+    file(GLOB_RECURSE PARTI_SRC RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "src/*.c" "src/*.cu" "src/*.h" "include/*.h")
+    # list(REMOVE_ITEM PARTI_SRC "src/sptensor/hicoo/cpd.c" "src/sptensor/hicoo/cpd_omp.c" "src/sptensor/cpd.c" "src/sptensor/cpd_omp.c" "src/matrix/rankmatrix_solver.c" "src/ktensor/rankktensor.c")
+    # MESSAGE( STATUS "PARTI_SRC:         " ${PARTI_SRC} )
 
     if(BUILD_SHARED)
-        cuda_add_library(HiParTI SHARED ${HiParTI_SRC})
-        CUDA_ADD_CUBLAS_TO_TARGET(HiParTI)
+        cuda_add_library(ParTI SHARED ${PARTI_SRC})
+        CUDA_ADD_CUBLAS_TO_TARGET(ParTI)
     endif()
     if(BUILD_STATIC)
-        cuda_add_library(HiParTI_s STATIC ${HiParTI_SRC})
-        CUDA_ADD_CUBLAS_TO_TARGET(HiParTI_s)
+        cuda_add_library(ParTI_s STATIC ${PARTI_SRC})
+        CUDA_ADD_CUBLAS_TO_TARGET(ParTI_s)
     endif()
 else()
-    file(GLOB_RECURSE HiParTI_SRC RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "src/*.c" "src/*.h" "include/*.h")
+    file(GLOB_RECURSE PARTI_SRC RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "src/*.c" "src/*.h" "include/*.h")
+    # list(REMOVE_ITEM PARTI_SRC "src/sptensor/hicoo/cpd.c" "src/sptensor/hicoo/cpd_omp.c" "src/sptensor/cpd.c" "src/sptensor/cpd_omp.c" "src/matrix/rankmatrix_solver.c" "src/ktensor/rankktensor.c")
 
     if(BUILD_SHARED)
-        add_library(HiParTI SHARED ${HiParTI_SRC})
+        add_library(ParTI SHARED ${PARTI_SRC})
     endif()
     if(BUILD_STATIC)
-        add_library(HiParTI_s STATIC ${HiParTI_SRC})
+        add_library(ParTI_s STATIC ${PARTI_SRC})
     endif()
 endif()
 
 if(BUILD_SHARED)
-    set_target_properties(HiParTI PROPERTIES C_STANDARD 99)
+    set_target_properties(ParTI PROPERTIES C_STANDARD 99)
 endif()
 if(BUILD_STATIC)
-    set_target_properties(HiParTI_s PROPERTIES C_STANDARD 99)
+    set_target_properties(ParTI_s PROPERTIES C_STANDARD 99)
 endif()
 
 add_subdirectory("benchmark")
+
+

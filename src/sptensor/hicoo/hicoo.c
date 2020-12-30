@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "hicoo.h"
 
 /**
@@ -26,16 +26,16 @@
  * @param ndims  the dimension of each mode the tensor will have
  * @param nnz number of nonzeros the tensor will have
  */
-int ptiNewSparseTensorHiCOO(
-    ptiSparseTensorHiCOO *hitsr,
-    const ptiIndex nmodes,
-    const ptiIndex ndims[],
-    const ptiNnzIndex nnz,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sk_bits,
-    const ptiElementIndex sc_bits)
+int sptNewSparseTensorHiCOO(
+    sptSparseTensorHiCOO *hitsr, 
+    const sptIndex nmodes, 
+    const sptIndex ndims[],
+    const sptNnzIndex nnz,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sk_bits,
+    const sptElementIndex sc_bits)
 {
-    ptiIndex i;
+    sptIndex i;
     int result;
 
     hitsr->nmodes = nmodes;
@@ -44,7 +44,7 @@ int ptiNewSparseTensorHiCOO(
         hitsr->sortorder[i] = i;
     }
     hitsr->ndims = malloc(nmodes * sizeof *hitsr->ndims);
-    pti_CheckOSError(!hitsr->ndims, "HiSpTns New");
+    spt_CheckOSError(!hitsr->ndims, "HiSpTns New");
     memcpy(hitsr->ndims, ndims, nmodes * sizeof *hitsr->ndims);
     hitsr->nnz = nnz;
 
@@ -52,77 +52,77 @@ int ptiNewSparseTensorHiCOO(
     hitsr->sb_bits = sb_bits; // block size by nnz
     hitsr->sk_bits = sk_bits; // kernel size by nnz
     hitsr->sc_bits = sc_bits; // chunk size by blocks
-    ptiIndex sk = (ptiIndex)pow(2, sk_bits);
+    sptIndex sk = (sptIndex)pow(2, sk_bits);
 
-    hitsr->kschr = (ptiIndexVector**)malloc(nmodes * sizeof *hitsr->kschr);
-    pti_CheckOSError(!hitsr->kschr, "HiSpTns New");
-    for(ptiIndex m = 0; m < nmodes; ++m) {
-        ptiIndex kernel_ndim = (ndims[m] + sk - 1)/sk;
-        hitsr->kschr[m] = (ptiIndexVector*)malloc(kernel_ndim * sizeof(*(hitsr->kschr[m])));
-        pti_CheckOSError(!hitsr->kschr[m], "HiSpTns New");
-        for(ptiIndex i = 0; i < kernel_ndim; ++i) {
-            result = ptiNewIndexVector(&(hitsr->kschr[m][i]), 0, 0);
-            pti_CheckError(result, "HiSpTns New", NULL);
+    hitsr->kschr = (sptIndexVector**)malloc(nmodes * sizeof *hitsr->kschr);
+    spt_CheckOSError(!hitsr->kschr, "HiSpTns New");
+    for(sptIndex m = 0; m < nmodes; ++m) {
+        sptIndex kernel_ndim = (ndims[m] + sk - 1)/sk;
+        hitsr->kschr[m] = (sptIndexVector*)malloc(kernel_ndim * sizeof(*(hitsr->kschr[m])));
+        spt_CheckOSError(!hitsr->kschr[m], "HiSpTns New");
+        for(sptIndex i = 0; i < kernel_ndim; ++i) {
+            result = sptNewIndexVector(&(hitsr->kschr[m][i]), 0, 0);
+            spt_CheckError(result, "HiSpTns New", NULL);
         }
     }
-    hitsr->nkiters = (ptiIndex*)malloc(nmodes * sizeof *hitsr->nkiters);
+    hitsr->nkiters = (sptIndex*)malloc(nmodes * sizeof *hitsr->nkiters);
 
-    result = ptiNewNnzIndexVector(&hitsr->kptr, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
-    result = ptiNewNnzIndexVector(&hitsr->cptr, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewNnzIndexVector(&hitsr->kptr, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewNnzIndexVector(&hitsr->cptr, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
 
     /* Balanced structures */
-    hitsr->kschr_balanced = (ptiIndexVector**)malloc(nmodes * sizeof *hitsr->kschr_balanced);
-    pti_CheckOSError(!hitsr->kschr_balanced, "HiSpTns New");
-    for(ptiIndex m = 0; m < nmodes; ++m) {
-        ptiIndex kernel_ndim = (ndims[m] + sk - 1)/sk;
-        hitsr->kschr_balanced[m] = (ptiIndexVector*)malloc(kernel_ndim * sizeof(*(hitsr->kschr_balanced[m])));
-        pti_CheckOSError(!hitsr->kschr_balanced[m], "HiSpTns New");
-        for(ptiIndex i = 0; i < kernel_ndim; ++i) {
-            result = ptiNewIndexVector(&(hitsr->kschr_balanced[m][i]), 0, 0);
-            pti_CheckError(result, "HiSpTns New", NULL);
+    hitsr->kschr_balanced = (sptIndexVector**)malloc(nmodes * sizeof *hitsr->kschr_balanced);
+    spt_CheckOSError(!hitsr->kschr_balanced, "HiSpTns New");
+    for(sptIndex m = 0; m < nmodes; ++m) {
+        sptIndex kernel_ndim = (ndims[m] + sk - 1)/sk;
+        hitsr->kschr_balanced[m] = (sptIndexVector*)malloc(kernel_ndim * sizeof(*(hitsr->kschr_balanced[m])));
+        spt_CheckOSError(!hitsr->kschr_balanced[m], "HiSpTns New");
+        for(sptIndex i = 0; i < kernel_ndim; ++i) {
+            result = sptNewIndexVector(&(hitsr->kschr_balanced[m][i]), 0, 0);
+            spt_CheckError(result, "HiSpTns New", NULL);
         }
     }
-    hitsr->kschr_balanced_pos = (ptiIndexVector**)malloc(nmodes * sizeof *hitsr->kschr_balanced_pos);
-    pti_CheckOSError(!hitsr->kschr_balanced_pos, "HiSpTns New");
-    for(ptiIndex m = 0; m < nmodes; ++m) {
-        ptiIndex kernel_ndim = (ndims[m] + sk - 1)/sk;
-        hitsr->kschr_balanced_pos[m] = (ptiIndexVector*)malloc(kernel_ndim * sizeof(*(hitsr->kschr_balanced_pos[m])));
-        pti_CheckOSError(!hitsr->kschr_balanced_pos[m], "HiSpTns New");
-        for(ptiIndex i = 0; i < kernel_ndim; ++i) {
-            result = ptiNewIndexVector(&(hitsr->kschr_balanced_pos[m][i]), 0, 0);
-            pti_CheckError(result, "HiSpTns New", NULL);
+    hitsr->kschr_balanced_pos = (sptIndexVector**)malloc(nmodes * sizeof *hitsr->kschr_balanced_pos);
+    spt_CheckOSError(!hitsr->kschr_balanced_pos, "HiSpTns New");
+    for(sptIndex m = 0; m < nmodes; ++m) {
+        sptIndex kernel_ndim = (ndims[m] + sk - 1)/sk;
+        hitsr->kschr_balanced_pos[m] = (sptIndexVector*)malloc(kernel_ndim * sizeof(*(hitsr->kschr_balanced_pos[m])));
+        spt_CheckOSError(!hitsr->kschr_balanced_pos[m], "HiSpTns New");
+        for(sptIndex i = 0; i < kernel_ndim; ++i) {
+            result = sptNewIndexVector(&(hitsr->kschr_balanced_pos[m][i]), 0, 0);
+            spt_CheckError(result, "HiSpTns New", NULL);
         }
     }
-    hitsr->nkpars = (ptiIndex*)malloc(nmodes * sizeof(ptiIndex));
-    pti_CheckOSError(!hitsr->nkpars, "HiSpTns New");
-    hitsr->kschr_rest = (ptiIndexVector*)malloc(nmodes * sizeof *hitsr->kschr_rest);
-    pti_CheckOSError(!hitsr->kschr_rest, "HiSpTns New");
-    for(ptiIndex m = 0; m < nmodes; ++m) {
-        result = ptiNewIndexVector(&(hitsr->kschr_rest[m]), 0, 0);
-        pti_CheckError(result, "HiSpTns New", NULL);
+    hitsr->nkpars = (sptIndex*)malloc(nmodes * sizeof(sptIndex));
+    spt_CheckOSError(!hitsr->nkpars, "HiSpTns New");
+    hitsr->kschr_rest = (sptIndexVector*)malloc(nmodes * sizeof *hitsr->kschr_rest);
+    spt_CheckOSError(!hitsr->kschr_rest, "HiSpTns New");
+    for(sptIndex m = 0; m < nmodes; ++m) {
+        result = sptNewIndexVector(&(hitsr->kschr_rest[m]), 0, 0);
+        spt_CheckError(result, "HiSpTns New", NULL);
     }
-    result = ptiNewNnzIndexVector(&hitsr->knnzs, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewNnzIndexVector(&hitsr->knnzs, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
 
-    result = ptiNewNnzIndexVector(&hitsr->bptr, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewNnzIndexVector(&hitsr->bptr, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
     hitsr->binds = malloc(nmodes * sizeof *hitsr->binds);
-    pti_CheckOSError(!hitsr->binds, "HiSpTns New");
+    spt_CheckOSError(!hitsr->binds, "HiSpTns New");
     for(i = 0; i < nmodes; ++i) {
-        result = ptiNewBlockIndexVector(&hitsr->binds[i], 0, 0);
-        pti_CheckError(result, "HiSpTns New", NULL);
+        result = sptNewBlockIndexVector(&hitsr->binds[i], 0, 0);
+        spt_CheckError(result, "HiSpTns New", NULL);
     }
 
     hitsr->einds = malloc(nmodes * sizeof *hitsr->einds);
-    pti_CheckOSError(!hitsr->einds, "HiSpTns New");
+    spt_CheckOSError(!hitsr->einds, "HiSpTns New");
     for(i = 0; i < nmodes; ++i) {
-        result = ptiNewElementIndexVector(&hitsr->einds[i], 0, 0);
-        pti_CheckError(result, "HiSpTns New", NULL);
+        result = sptNewElementIndexVector(&hitsr->einds[i], 0, 0);
+        spt_CheckError(result, "HiSpTns New", NULL);
     }
-    result = ptiNewValueVector(&hitsr->values, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewValueVector(&hitsr->values, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
 
 
     return 0;
@@ -135,15 +135,15 @@ int ptiNewSparseTensorHiCOO(
  * @param nmodes number of modes the tensor will have
  * @param ndims  the dimension of each mode the tensor will have
  */
-int ptiNewSparseTensorHiCOO_NoNnz(
-    ptiSparseTensorHiCOO *hitsr,
-    const ptiIndex nmodes,
-    const ptiIndex ndims[],
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sk_bits,
-    const ptiElementIndex sc_bits)
+int sptNewSparseTensorHiCOO_NoNnz(
+    sptSparseTensorHiCOO *hitsr,
+    const sptIndex nmodes, 
+    const sptIndex ndims[],
+    const sptElementIndex sb_bits,
+    const sptElementIndex sk_bits,
+    const sptElementIndex sc_bits)
 {
-    ptiIndex i;
+    sptIndex i;
     int result;
 
     hitsr->nmodes = nmodes;
@@ -152,50 +152,50 @@ int ptiNewSparseTensorHiCOO_NoNnz(
         hitsr->sortorder[i] = i;
     }
     hitsr->ndims = malloc(nmodes * sizeof *hitsr->ndims);
-    pti_CheckOSError(!hitsr->ndims, "HiSpTns New");
+    spt_CheckOSError(!hitsr->ndims, "HiSpTns New");
     memcpy(hitsr->ndims, ndims, nmodes * sizeof *hitsr->ndims);
 
     /* Parameters */
     hitsr->sb_bits = sb_bits; // block size by nnz
     hitsr->sk_bits = sk_bits; // kernel size by nnz
     hitsr->sc_bits = sc_bits; // chunk size by blocks
-    ptiIndex sk = (ptiIndex)pow(2, sk_bits);
+    sptIndex sk = (sptIndex)pow(2, sk_bits);
 
-    hitsr->kschr = (ptiIndexVector**)malloc(nmodes * sizeof *hitsr->kschr);
-    pti_CheckOSError(!hitsr->kschr, "HiSpTns New");
-    for(ptiIndex m = 0; m < nmodes; ++m) {
-        ptiIndex kernel_ndim = (ndims[m] + sk - 1)/sk;
-        hitsr->kschr[m] = (ptiIndexVector*)malloc(kernel_ndim * sizeof(*(hitsr->kschr[m])));
-        pti_CheckOSError(!hitsr->kschr[m], "HiSpTns New");
-        for(ptiIndex i = 0; i < kernel_ndim; ++i) {
-            result = ptiNewIndexVector(&(hitsr->kschr[m][i]), 0, 0);
-            pti_CheckError(result, "HiSpTns New", NULL);
+    hitsr->kschr = (sptIndexVector**)malloc(nmodes * sizeof *hitsr->kschr);
+    spt_CheckOSError(!hitsr->kschr, "HiSpTns New");
+    for(sptIndex m = 0; m < nmodes; ++m) {
+        sptIndex kernel_ndim = (ndims[m] + sk - 1)/sk;
+        hitsr->kschr[m] = (sptIndexVector*)malloc(kernel_ndim * sizeof(*(hitsr->kschr[m])));
+        spt_CheckOSError(!hitsr->kschr[m], "HiSpTns New");
+        for(sptIndex i = 0; i < kernel_ndim; ++i) {
+            result = sptNewIndexVector(&(hitsr->kschr[m][i]), 0, 0);
+            spt_CheckError(result, "HiSpTns New", NULL);
         }
     }
-    hitsr->nkiters = (ptiIndex*)malloc(nmodes * sizeof *hitsr->nkiters);
+    hitsr->nkiters = (sptIndex*)malloc(nmodes * sizeof *hitsr->nkiters);
 
-    result = ptiNewNnzIndexVector(&hitsr->kptr, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
-    result = ptiNewNnzIndexVector(&hitsr->cptr, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewNnzIndexVector(&hitsr->kptr, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewNnzIndexVector(&hitsr->cptr, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
 
-    result = ptiNewNnzIndexVector(&hitsr->bptr, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewNnzIndexVector(&hitsr->bptr, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
     hitsr->binds = malloc(nmodes * sizeof *hitsr->binds);
-    pti_CheckOSError(!hitsr->binds, "HiSpTns New");
+    spt_CheckOSError(!hitsr->binds, "HiSpTns New");
     for(i = 0; i < nmodes; ++i) {
-        result = ptiNewBlockIndexVector(&hitsr->binds[i], 0, 0);
-        pti_CheckError(result, "HiSpTns New", NULL);
+        result = sptNewBlockIndexVector(&hitsr->binds[i], 0, 0);
+        spt_CheckError(result, "HiSpTns New", NULL);
     }
 
     hitsr->einds = malloc(nmodes * sizeof *hitsr->einds);
-    pti_CheckOSError(!hitsr->einds, "HiSpTns New");
+    spt_CheckOSError(!hitsr->einds, "HiSpTns New");
     for(i = 0; i < nmodes; ++i) {
-        result = ptiNewElementIndexVector(&hitsr->einds[i], 0, 0);
-        pti_CheckError(result, "HiSpTns New", NULL);
+        result = sptNewElementIndexVector(&hitsr->einds[i], 0, 0);
+        spt_CheckError(result, "HiSpTns New", NULL);
     }
-    result = ptiNewValueVector(&hitsr->values, 0, 0);
-    pti_CheckError(result, "HiSpTns New", NULL);
+    result = sptNewValueVector(&hitsr->values, 0, 0);
+    spt_CheckError(result, "HiSpTns New", NULL);
 
 
     return 0;
@@ -206,33 +206,33 @@ int ptiNewSparseTensorHiCOO_NoNnz(
  * Release any memory the HiCOO sparse tensor is holding
  * @param hitsr the tensor to release
  */
-void ptiFreeSparseTensorHiCOO(ptiSparseTensorHiCOO *hitsr)
+void sptFreeSparseTensorHiCOO(sptSparseTensorHiCOO *hitsr)
 {
-    ptiIndex i;
-    ptiIndex nmodes = hitsr->nmodes;
-    ptiIndex sk = (ptiIndex)pow(2, hitsr->sk_bits);
+    sptIndex i;
+    sptIndex nmodes = hitsr->nmodes;
+    sptIndex sk = (sptIndex)pow(2, hitsr->sk_bits);
 
-    for(ptiIndex m = 0; m < nmodes; ++m) {
-        ptiIndex kernel_ndim = (hitsr->ndims[m] + sk - 1)/sk;
+    for(sptIndex m = 0; m < nmodes; ++m) {
+        sptIndex kernel_ndim = (hitsr->ndims[m] + sk - 1)/sk;
         for(i = 0; i < kernel_ndim; ++i) {
-            ptiFreeIndexVector(&(hitsr->kschr[m][i]));
+            sptFreeIndexVector(&(hitsr->kschr[m][i]));
         }
         free(hitsr->kschr[m]);
     }
     free(hitsr->kschr);
     free(hitsr->nkiters);
 
-    ptiFreeNnzIndexVector(&hitsr->kptr);
-    ptiFreeNnzIndexVector(&hitsr->cptr);
+    sptFreeNnzIndexVector(&hitsr->kptr);
+    sptFreeNnzIndexVector(&hitsr->cptr);
 
-    ptiFreeNnzIndexVector(&hitsr->bptr);
+    sptFreeNnzIndexVector(&hitsr->bptr);
     for(i = 0; i < nmodes; ++i) {
-        ptiFreeBlockIndexVector(&hitsr->binds[i]);
-        ptiFreeElementIndexVector(&hitsr->einds[i]);
+        sptFreeBlockIndexVector(&hitsr->binds[i]);
+        sptFreeElementIndexVector(&hitsr->einds[i]);
     }
     free(hitsr->binds);
     free(hitsr->einds);
-    ptiFreeValueVector(&hitsr->values);
+    sptFreeValueVector(&hitsr->values);
 
     hitsr->nmodes = 0;
     hitsr->nnz = 0;
@@ -245,12 +245,12 @@ void ptiFreeSparseTensorHiCOO(ptiSparseTensorHiCOO *hitsr)
 }
 
 
-double SparseTensorFrobeniusNormSquaredHiCOO(ptiSparseTensorHiCOO const * const hitsr)
+double SparseTensorFrobeniusNormSquaredHiCOO(sptSparseTensorHiCOO const * const hitsr) 
 {
   double norm = 0;
-  ptiValue const * const restrict vals = hitsr->values.data;
+  sptValue const * const restrict vals = hitsr->values.data;
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
   #pragma omp parallel for reduction(+:norm)
 #endif
   for(size_t n=0; n < hitsr->nnz; ++n) {

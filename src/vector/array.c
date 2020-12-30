@@ -16,17 +16,18 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../error/error.h"
 
 
-ptiNnzIndex ptiMaxNnzIndexArray(
-  ptiNnzIndex const * const indices,
-  ptiNnzIndex const size)
+sptNnzIndex sptMaxNnzIndexArray(
+  sptNnzIndex const * const indices,
+  sptNnzIndex const size)
 {
-  ptiNnzIndex max = indices[0];
-  for(ptiNnzIndex i=1; i < size; ++i) {
+  sptNnzIndex max = indices[0];
+  for(sptNnzIndex i=1; i < size; ++i) {
     if(indices[i] > max) {
       max = indices[i];
     }
@@ -35,12 +36,12 @@ ptiNnzIndex ptiMaxNnzIndexArray(
 }
 
 
-ptiIndex ptiMaxIndexArray(
-  ptiIndex const * const indices,
-  ptiNnzIndex const size)
+sptIndex sptMaxIndexArray(
+  sptIndex const * const indices,
+  sptNnzIndex const size)
 {
-  ptiIndex max = indices[0];
-  for(ptiNnzIndex i=1; i < size; ++i) {
+  sptIndex max = indices[0];
+  for(sptNnzIndex i=1; i < size; ++i) {
     if(indices[i] > max) {
       max = indices[i];
     }
@@ -49,7 +50,7 @@ ptiIndex ptiMaxIndexArray(
 }
 
 
-static inline int pti_PairCompareIndices(ptiKeyValuePair const * kvarray, ptiIndex loc1, ptiIndex loc2) {
+static inline int spt_PairCompareIndices(sptKeyValuePair const * kvarray, sptIndex loc1, sptIndex loc2) {
 
     if(kvarray[loc1].value < kvarray[loc2].value) {
         return -1;
@@ -61,35 +62,35 @@ static inline int pti_PairCompareIndices(ptiKeyValuePair const * kvarray, ptiInd
 }
 
 
-static inline void pti_SwapPairs(ptiKeyValuePair * kvarray, ptiIndex const ind1, ptiIndex const ind2) {
+static inline void spt_SwapPairs(sptKeyValuePair * kvarray, sptIndex const ind1, sptIndex const ind2) {
     
-    ptiIndex eleind1 = kvarray[ind1].key;
+    sptIndex eleind1 = kvarray[ind1].key;
     kvarray[ind1].key = kvarray[ind2].key;
     kvarray[ind2].key = eleind1;
 
-    ptiIndex val1 = kvarray[ind1].value;
+    sptIndex val1 = kvarray[ind1].value;
     kvarray[ind1].value = kvarray[ind2].value;
     kvarray[ind2].value = val1;
 }
 
-static void pti_QuickSortPairArray(ptiKeyValuePair * kvarray, ptiIndex const l, ptiIndex const r)
+static void spt_QuickSortPairArray(sptKeyValuePair * kvarray, sptIndex const l, sptIndex const r)
 {
-    ptiIndex i, j, p;
+    sptIndex i, j, p;
     if(r-l < 2) {
         return;
     }
     p = (l+r) / 2;
     for(i = l, j = r-1; ; ++i, --j) {
-        while(pti_PairCompareIndices(kvarray, i, p) < 0) {
+        while(spt_PairCompareIndices(kvarray, i, p) < 0) {
             ++i;
         }
-        while(pti_PairCompareIndices(kvarray, p, j) < 0) {
+        while(spt_PairCompareIndices(kvarray, p, j) < 0) {
             --j;
         }
         if(i >= j) {
             break;
         }
-        pti_SwapPairs(kvarray, i, j);
+        spt_SwapPairs(kvarray, i, j);
         if(i == p) {
             p = j;
         } else if(j == p) {
@@ -97,29 +98,28 @@ static void pti_QuickSortPairArray(ptiKeyValuePair * kvarray, ptiIndex const l, 
         }
     }
 
-    pti_QuickSortPairArray(kvarray, l, i);
-    pti_QuickSortPairArray(kvarray, i, r);
+    spt_QuickSortPairArray(kvarray, l, i);
+    spt_QuickSortPairArray(kvarray, i, r);
 
 }
 
 /**
- * Increasingly sort an key-value pair array in type ptiIndex.
+ * Increasingly sort an key-value pair array in type sptIndex.
  *
  * @param array a pointer to an array to be sorted,
  * @param length number of values 
  *
  */
-void ptiPairArraySort(ptiKeyValuePair * kvarray, ptiIndex const length)
+void sptPairArraySort(sptKeyValuePair * kvarray, sptIndex const length)
 {
-    pti_QuickSortPairArray(kvarray, 0, length);
+    spt_QuickSortPairArray(kvarray, 0, length);
 }
 
 /// The return value has a small chance to overflow.
-long int ptiInArray(ptiIndex * array, ptiNnzIndex len, ptiIndex value)
+long int sptInArray(sptIndex * array, sptNnzIndex len, sptIndex value) 
 {
-  int result = -1;
-  for (ptiNnzIndex i = 0; i < len; ++i)
+  for (sptNnzIndex i = 0; i < len; ++i)
     if(value == array[i])
       return i;
-  return result;
+  return -1;
 }

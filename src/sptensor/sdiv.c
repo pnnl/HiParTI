@@ -16,19 +16,19 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
-int ptiSparseTensorDivScalar(ptiSparseTensor *X, ptiValue const a) {
+int sptSparseTensorDivScalar(sptSparseTensor *X, sptValue const a) {
     if(a != 0) {
-        ptiNnzIndex i;
+        sptNnzIndex i;
         #pragma omp parallel for schedule(static)
         for(i = 0; i < X->nnz; ++i) {
             X->values.data[i] /= a;
         }
         return 0;
     } else {
-        pti_CheckError(PTIERR_ZERO_DIVISION, "SpTns Div", "divide by zero");
+        spt_CheckError(SPTERR_ZERO_DIVISION, "SpTns Div", "divide by zero");
     }
     return 0;
 }

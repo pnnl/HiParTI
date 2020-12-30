@@ -16,322 +16,382 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HIPARTI_SPTENSORS_H
-#define HIPARTI_SPTENSORS_H
+#ifndef PARTI_SPTENSORS_H
+#define PARTI_SPTENSORS_H
+
+#include <string.h>
 
 /* Sparse tensor */
-int ptiNewSparseTensor(ptiSparseTensor *tsr, ptiIndex nmodes, const ptiIndex ndims[]);
-int ptiCopySparseTensor(ptiSparseTensor *dest, const ptiSparseTensor *src, int const nt);
-void ptiFreeSparseTensor(ptiSparseTensor *tsr);
-double SparseTensorFrobeniusNormSquared(ptiSparseTensor const * const ptien);
-int ptiLoadSparseTensor(ptiSparseTensor *tsr, ptiIndex start_index, char const * const fname);
-int ptiDumpSparseTensor(const ptiSparseTensor *tsr, ptiIndex start_index, FILE *fp);
-int ptiMatricize(ptiSparseTensor const * const X,
-    ptiIndex const m,
-    ptiSparseMatrix * const A,
+int sptNewSparseTensor(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[]);
+int sptNewSparseTensorNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], int numa_node);
+int sptNewSparseTensorWithSizeNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], int numa_node, unsigned long long size);
+int sptNewSparseTensorWithSize(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], unsigned long long size);
+int sptCopySparseTensor(sptSparseTensor *dest, const sptSparseTensor *src, int const nt);
+void sptFreeSparseTensor(sptSparseTensor *tsr);
+double SparseTensorFrobeniusNormSquared(sptSparseTensor const * const spten);
+int sptLoadSparseTensor(sptSparseTensor *tsr, sptIndex start_index, char const * const fname);
+int sptLoadSparseTensorNuma(sptSparseTensor *tsr, sptIndex start_index, char const * const fname, int numa_node);
+int sptDumpSparseTensor(const sptSparseTensor *tsr, sptIndex start_index, FILE *fp);
+int sptMatricize(sptSparseTensor const * const X,
+    sptIndex const m,
+    sptSparseMatrix * const A,
     int const transpose);
-void ptiGetBestModeOrder(
-    ptiIndex * mode_order,
-    ptiIndex const mode,
-    ptiIndex const * ndims,
-    ptiIndex const nmodes);
-void ptiGetWorstModeOrder(
-    ptiIndex * mode_order,
-    ptiIndex const mode,
-    ptiIndex const * ndims,
-    ptiIndex const nmodes);
-void ptiGetRandomShuffleElements(ptiSparseTensor *tsr);
-void ptiGetRandomShuffledIndices(ptiSparseTensor *tsr, ptiIndex ** map_inds);
-void ptiSparseTensorShuffleIndices(ptiSparseTensor *tsr, ptiIndex ** map_inds);
-void ptiSparseTensorInvMap(ptiSparseTensor *tsr, ptiIndex ** in_map_inds);
-void ptiSparseTensorShuffleModes(ptiSparseTensor *tsr, ptiIndex * mode_order);
-int ptiSparseTensorSetIndices(
-    ptiSparseTensor *ref,
-    ptiIndex * mode_order,
-    ptiIndex num_cmodes,
-    ptiNnzIndexVector *fiberidx);
-void ptiSparseTensorSortIndex(ptiSparseTensor *tsr, int force, int tk);
-void ptiSparseTensorSortIndexAtMode(ptiSparseTensor *tsr, ptiIndex const mode, int force);
-void ptiSparseTensorSortIndexCustomOrder(ptiSparseTensor *tsr, ptiIndex const *  mode_order, int force, int tk);
-void ptiSparseTensorSortIndexMorton(
-    ptiSparseTensor *tsr,
+void sptGetBestModeOrder(
+    sptIndex * mode_order,
+    sptIndex const mode,
+    sptIndex const * ndims,
+    sptIndex const nmodes);
+void sptGetWorstModeOrder(
+    sptIndex * mode_order,
+    sptIndex const mode,
+    sptIndex const * ndims,
+    sptIndex const nmodes);
+void sptGetRandomShuffleElements(sptSparseTensor *tsr);
+void sptGetRandomShuffledIndices(sptSparseTensor *tsr, sptIndex ** map_inds);
+void sptSparseTensorShuffleIndices(sptSparseTensor *tsr, sptIndex ** map_inds);
+void sptSparseTensorInvMap(sptSparseTensor *tsr, sptIndex ** in_map_inds);
+void sptSparseTensorShuffleModes(sptSparseTensor *tsr, sptIndex * mode_order);
+int sptSparseTensorSetIndices(
+    sptSparseTensor *ref,
+    sptIndex * mode_order,
+    sptIndex num_cmodes,
+    sptNnzIndexVector *fiberidx);
+void sptSparseTensorSortIndex(sptSparseTensor *tsr, int force, int tk);
+void sptSparseTensorSortIndexCmode(sptSparseTensor *tsr, int force, int tk, int cmode_stsrt, int num_cmode);
+
+void sptSparseTensorSortIndexAtMode(sptSparseTensor *tsr, sptIndex const mode, int force);
+void sptSparseTensorSortIndexCustomOrder(sptSparseTensor *tsr, sptIndex const *  mode_order, int force, int tk);
+void sptSparseTensorSortIndexMorton(
+    sptSparseTensor *tsr, 
     int force,
-    ptiNnzIndex begin,
-    ptiNnzIndex end,
-    ptiElementIndex sb_bits,
+    sptNnzIndex begin,
+    sptNnzIndex end,
+    sptElementIndex sb_bits,
     int tk);
-void ptiSparseTensorSortIndexExceptSingleModeRowBlock(
-    ptiSparseTensor *tsr,
+void sptSparseTensorSortIndexExceptSingleModeRowBlock(
+    sptSparseTensor *tsr, 
     int force,
-    ptiNnzIndex begin,
-    ptiNnzIndex end,
-    ptiIndex * const mode_order,
-    ptiElementIndex sk_bits,
+    sptNnzIndex begin,
+    sptNnzIndex end,
+    sptIndex * const mode_order,
+    sptElementIndex sk_bits,
     int tk);
-void ptiSparseTensorSortIndexRowBlock(
-    ptiSparseTensor *tsr,
+void sptSparseTensorSortIndexRowBlock(
+    sptSparseTensor *tsr, 
     int force,
-    ptiNnzIndex begin,
-    ptiNnzIndex end,
-    ptiElementIndex sk_bits,
+    sptNnzIndex begin,
+    sptNnzIndex end,
+    sptElementIndex sk_bits,
     int tk);
-void ptiSparseTensorSortIndexSingleMode(ptiSparseTensor *tsr, int force, ptiIndex mode, int tk);
-void ptiSparseTensorSortIndexExceptSingleMode(ptiSparseTensor *tsr, int force, ptiIndex * mode_order, int tk);
-void ptiSparseTensorSortIndexExceptSingleModeMorton(ptiSparseTensor *tsr, int force, ptiIndex * mode_order, ptiElementIndex sb_bits, int tk);
-int ptiSparseTensorMixedOrder(
-    ptiSparseTensor *tsr,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sk_bits,
+void sptSparseTensorSortIndexSingleMode(sptSparseTensor *tsr, int force, sptIndex mode, int tk);
+void sptSparseTensorSortIndexExceptSingleMode(sptSparseTensor *tsr, int force, sptIndex * mode_order, int tk);
+void sptSparseTensorSortIndexExceptSingleModeMorton(sptSparseTensor *tsr, int force, sptIndex * mode_order, sptElementIndex sb_bits, int tk);
+int sptSparseTensorMixedOrder(
+    sptSparseTensor *tsr, 
+    const sptElementIndex sb_bits,
+    const sptElementIndex sk_bits,
     int const tk);
-int ptiSparseTensorSortPartialIndex(
-    ptiSparseTensor *tsr,
-    ptiIndex const *  mode_order,
-    const ptiElementIndex sb_bits,
+int sptSparseTensorSortPartialIndex(
+    sptSparseTensor *tsr, 
+    sptIndex const *  mode_order,
+    const sptElementIndex sb_bits,
     int const tk);
-void ptiSparseTensorCalcIndexBounds(ptiIndex inds_low[], ptiIndex inds_high[], const ptiSparseTensor *tsr);
-int pti_ComputeSliceSizes(
-    ptiNnzIndex * slice_nnzs,
-    ptiSparseTensor * const tsr,
-    ptiIndex const mode);
-void ptiSparseTensorStatus(ptiSparseTensor *tsr, FILE *fp);
-double ptiSparseTensorDensity(ptiSparseTensor const * const tsr);
+void sptSparseTensorCalcIndexBounds(sptIndex inds_low[], sptIndex inds_high[], const sptSparseTensor *tsr);
+int spt_ComputeSliceSizes(
+    sptNnzIndex * slice_nnzs, 
+    sptSparseTensor * const tsr,
+    sptIndex const mode);
+void sptSparseTensorStatus(sptSparseTensor *tsr, FILE *fp);
+double sptSparseTensorDensity(sptSparseTensor const * const tsr);
 
 /* Renumbering */
-void ptiIndexRenumber(ptiSparseTensor * tsr, ptiIndex ** newIndices, int renumber, ptiIndex iterations, ptiElementIndex sb_bits, int tk, int impl_num);
-void orderit(ptiSparseTensor *tsr, ptiIndex **newIndices, int const renumber, ptiIndex const iterations);
+void sptIndexRenumber(sptSparseTensor * tsr, sptIndex ** newIndices, int renumber, sptIndex iterations, sptElementIndex sb_bits, int tk, int impl_num);
+void orderit(sptSparseTensor *tsr, sptIndex **newIndices, int const renumber, sptIndex const iterations);
 
 /* Sparse tensor HiCOO */
-int ptiNewSparseTensorHiCOO(
-    ptiSparseTensorHiCOO *hitsr,
-    const ptiIndex nmodes,
-    const ptiIndex ndims[],
-    const ptiNnzIndex nnz,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sk_bits,
-    const ptiElementIndex sc_bits);
-int ptiNewSparseTensorHiCOO_NoNnz(
-    ptiSparseTensorHiCOO *hitsr,
-    const ptiIndex nmodes,
-    const ptiIndex ndims[],
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sk_bits,
-    const ptiElementIndex sc_bits);
-void ptiFreeSparseTensorHiCOO(ptiSparseTensorHiCOO *hitsr);
-int ptiSparseTensorToHiCOO(
-    ptiSparseTensorHiCOO *hitsr,
-    ptiNnzIndex *max_nnzb,
-    ptiSparseTensor *tsr,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sk_bits,
-    const ptiElementIndex sc_bits,
+int sptNewSparseTensorHiCOO(
+    sptSparseTensorHiCOO *hitsr, 
+    const sptIndex nmodes, 
+    const sptIndex ndims[],
+    const sptNnzIndex nnz,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sk_bits,
+    const sptElementIndex sc_bits);
+int sptNewSparseTensorHiCOO_NoNnz(
+    sptSparseTensorHiCOO *hitsr, 
+    const sptIndex nmodes, 
+    const sptIndex ndims[],
+    const sptElementIndex sb_bits,
+    const sptElementIndex sk_bits,
+    const sptElementIndex sc_bits);
+void sptFreeSparseTensorHiCOO(sptSparseTensorHiCOO *hitsr);
+int sptSparseTensorToHiCOO(
+    sptSparseTensorHiCOO *hitsr, 
+    sptNnzIndex *max_nnzb,
+    sptSparseTensor *tsr, 
+    const sptElementIndex sb_bits,
+    const sptElementIndex sk_bits,
+    const sptElementIndex sc_bits,
     int const tk);
-int ptiDumpSparseTensorHiCOO(ptiSparseTensorHiCOO * const hitsr, FILE *fp);
-void ptiLoadShuffleFile(ptiSparseTensor *tsr, FILE *fs, ptiIndex ** map_inds);
-void ptiSparseTensorStatusHiCOO(ptiSparseTensorHiCOO *hitsr, FILE *fp);
-double SparseTensorFrobeniusNormSquaredHiCOO(ptiSparseTensorHiCOO const * const hitsr);
-int ptiSetKernelPointers(
-    ptiNnzIndexVector *kptr,
-    ptiNnzIndexVector *knnzs,
-    ptiSparseTensor *tsr,
-    const ptiElementIndex sk_bits);
+int sptDumpSparseTensorHiCOO(sptSparseTensorHiCOO * const hitsr, FILE *fp);
+void sptLoadShuffleFile(sptSparseTensor *tsr, FILE *fs, sptIndex ** map_inds);
+void sptSparseTensorStatusHiCOO(sptSparseTensorHiCOO *hitsr, FILE *fp);
+double SparseTensorFrobeniusNormSquaredHiCOO(sptSparseTensorHiCOO const * const hitsr);
+int sptSetKernelPointers(
+    sptNnzIndexVector *kptr,
+    sptNnzIndexVector *knnzs,
+    sptSparseTensor *tsr, 
+    const sptElementIndex sk_bits);
 
 
 /* Sparse tensor unary operations */
-int ptiSparseTensorMulScalar(ptiSparseTensor *X, ptiValue const a);
-int ptiCudaSparseTensorMulScalar(ptiSparseTensor *X, ptiValue a);
-int ptiSparseTensorDivScalar(ptiSparseTensor *X, ptiValue const a);
+int sptSparseTensorMulScalar(sptSparseTensor *X, sptValue const a);
+int sptSparseTensorDivScalar(sptSparseTensor *X, sptValue const a);
 
 /* Sparse tensor binary operations */
-int ptiSparseTensorAdd(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y);
-int ptiSparseTensorSub(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y);
-int ptiSparseTensorAddOMP(ptiSparseTensor *Y, ptiSparseTensor *X, int const nthreads);
-int ptiSparseTensorSubOMP(ptiSparseTensor *Y, ptiSparseTensor *X, int const nthreads);
+int sptSparseTensorAdd(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y);
+int sptSparseTensorSub(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y);
+int sptSparseTensorAddOMP(sptSparseTensor *Y, sptSparseTensor *X, int const nthreads);
+int sptSparseTensorSubOMP(sptSparseTensor *Y, sptSparseTensor *X, int const nthreads);
 
-int ptiSparseTensorDotMul(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y);
-int ptiSparseTensorDotMulEq(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y);
-int ptiOmpSparseTensorDotMulEq(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y);
-int ptiCudaSparseTensorDotMulEq(ptiSparseTensor *Z, const ptiSparseTensor *X, const ptiSparseTensor *Y);
-int ptiSparseTensorDotDiv(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y);
+int sptSparseTensorDotMul(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y);
+int sptSparseTensorDotMulEq(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y);
+int sptOmpSparseTensorDotMulEq(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y);
+int sptCudaSparseTensorDotMulEq(sptSparseTensor *Z, const sptSparseTensor *X, const sptSparseTensor *Y);
+int sptSparseTensorDotDiv(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y);
 
-int ptiSparseTensorMulMatrix(ptiSemiSparseTensor *Y, ptiSparseTensor * const X, ptiMatrix *const U, ptiIndex mode);
-int ptiOmpSparseTensorMulMatrix(ptiSemiSparseTensor *Y, ptiSparseTensor * const X, ptiMatrix * const U, ptiIndex mode);
-int ptiCudaSparseTensorMulMatrix(ptiSemiSparseTensor *Y, ptiSparseTensor *X, const ptiMatrix *U, ptiIndex const mode);
-int ptiCudaSparseTensorMulMatrixOneKernel(ptiSemiSparseTensor *Y, ptiSparseTensor *X, const ptiMatrix *U, ptiIndex const mode, ptiIndex const impl_num, ptiNnzIndex const smen_size);
+int sptSparseTensorMulMatrix(sptSemiSparseTensor *Y, sptSparseTensor * const X, sptMatrix *const U, sptIndex mode);
+int sptOmpSparseTensorMulMatrix(sptSemiSparseTensor *Y, sptSparseTensor * const X, sptMatrix * const U, sptIndex mode);
+int sptCudaSparseTensorMulMatrix(sptSemiSparseTensor *Y, sptSparseTensor *X, const sptMatrix *U, sptIndex const mode);
+int sptCudaSparseTensorMulMatrixOneKernel(sptSemiSparseTensor *Y, sptSparseTensor *X, const sptMatrix *U, sptIndex const mode, sptIndex const impl_num, sptNnzIndex const smen_size);
 
-int ptiSparseTensorMulVector(ptiSemiSparseTensor *Y, ptiSparseTensor * const X, ptiValueVector * const V, ptiIndex mode);
+int sptSparseTensorMulVector(sptSemiSparseTensor *Y, sptSparseTensor * const X, sptValueVector * const V, sptIndex mode);
 
-int ptiSparseTensorMulTensor(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor *const Y, ptiIndex num_cmodes, ptiIndex * cmodes_X, ptiIndex * cmodes_Y);
+int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, int nt, int output_sorting, int placement);
 
 /**
  * Kronecker product
  */
-int ptiSparseTensorKroneckerMul(ptiSparseTensor *Y, const ptiSparseTensor *A, const ptiSparseTensor *B);
+int sptSparseTensorKroneckerMul(sptSparseTensor *Y, const sptSparseTensor *A, const sptSparseTensor *B);
 
 /**
  * Khatri-Rao product
  */
-int ptiSparseTensorKhatriRaoMul(ptiSparseTensor *Y, const ptiSparseTensor *A, const ptiSparseTensor *B);
+int sptSparseTensorKhatriRaoMul(sptSparseTensor *Y, const sptSparseTensor *A, const sptSparseTensor *B);
 
 
 /**
  * Matricized tensor times Khatri-Rao product.
  */
-int ptiMTTKRP(
-    ptiSparseTensor const * const X,
-    ptiMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode);
-int ptiOmpMTTKRP(
-    ptiSparseTensor const * const X,
-    ptiMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode,
+int sptMTTKRP(
+    sptSparseTensor const * const X,
+    sptMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode);
+int sptOmpMTTKRP(
+    sptSparseTensor const * const X,
+    sptMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode,
     const int tk);
-int ptiOmpMTTKRP_Reduce(
-    ptiSparseTensor const * const X,
-    ptiMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiMatrix * copy_mats[],    // temporary matrices for reduction
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode,
+int sptOmpMTTKRP_Reduce(sptSparseTensor const * const X,
+    sptMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptMatrix * copy_mats[],    // temporary matrices for reduction
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode,
     const int tk);
-int ptiOmpMTTKRP_Lock(
-    ptiSparseTensor const * const X,
-    ptiMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode,
+int sptOmpMTTKRP_Lock(sptSparseTensor const * const X,
+    sptMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode,
     const int tk,
-    ptiMutexPool * lock_pool);
-int ptiCudaMTTKRP(
-    ptiSparseTensor const * const X,
-    ptiMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex * const mats_order,    // Correspond to the mode order of X.
-    ptiIndex const mode,
-    ptiIndex const impl_num);
-int ptiCudaMTTKRPOneKernel(
-    ptiSparseTensor const * const X,
-    ptiMatrix ** const mats,     // mats[nmodes] as temporary space.
-    ptiIndex * const mats_order,    // Correspond to the mode order of X.
-    ptiIndex const mode,
-    ptiIndex const impl_num);
-int ptiCudaMTTKRPSM(
-    ptiSparseTensor const * const X,
-    ptiMatrix ** const mats,     // mats[nmodes] as temporary space.
-    ptiIndex * const mats_order,    // Correspond to the mode order of X.
-    ptiIndex const mode,
-    ptiIndex const impl_num);
-int ptiCudaMTTKRPDevice(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiIndex rank,
-    const ptiIndex stride,
-    const ptiIndex * Xndims,
-    ptiIndex ** const Xinds,
-    const ptiValue * Xvals,
-    const ptiIndex * dev_mats_order,
-    ptiValue ** dev_mats,
-    ptiValue * dev_scratch);
-int ptiSplittedMTTKRP(
-    ptiSparseTensor const *const X,
-    ptiMatrix *mats[],
-    ptiIndex const mats_order[],
-    ptiIndex const mode,
-    ptiValueVector *scratch,
-    ptiIndex const split_count[]
+    sptMutexPool * lock_pool);
+int sptCudaMTTKRP(
+    sptSparseTensor const * const X,
+    sptMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex * const mats_order,    // Correspond to the mode order of X.
+    sptIndex const mode,
+    sptIndex const impl_num);
+int sptCudaMTTKRPOneKernel(
+    sptSparseTensor const * const X,
+    sptMatrix ** const mats,     // mats[nmodes] as temporary space.
+    sptIndex * const mats_order,    // Correspond to the mode order of X.
+    sptIndex const mode,
+    sptIndex const impl_num);
+int sptCudaMTTKRPSM(
+    sptSparseTensor const * const X,
+    sptMatrix ** const mats,     // mats[nmodes] as temporary space.
+    sptIndex * const mats_order,    // Correspond to the mode order of X.
+    sptIndex const mode,
+    sptIndex const impl_num);
+int sptCudaMTTKRPDevice(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptIndex rank,
+    const sptIndex stride,
+    const sptIndex * Xndims,
+    sptIndex ** const Xinds,
+    const sptValue * Xvals,
+    const sptIndex * dev_mats_order,
+    sptValue ** dev_mats,
+    sptValue * dev_scratch);
+int sptSplittedMTTKRP(
+    sptSparseTensor const *const X,
+    sptMatrix *mats[],
+    sptIndex const mats_order[],
+    sptIndex const mode,
+    sptValueVector *scratch,
+    sptIndex const split_count[]
 );
 
 /* Coarse GPU */
-int ptiCudaCoarseMTTKRP(
-    ptiSparseTensor const * const X,
-    ptiMatrix ** const mats,     // mats[nmodes] as temporary space.
-    ptiIndexVector const * const mats_order,    // Correspond to the mode order of X.
-    ptiIndex const mode);
+int sptCudaCoarseMTTKRP(
+    sptSparseTensor const * const X,
+    sptMatrix ** const mats,     // mats[nmodes] as temporary space.
+    sptIndexVector const * const mats_order,    // Correspond to the mode order of X.
+    sptIndex const mode);
 
 /**
  * Matricized tensor times Khatri-Rao product for HiCOO tensors
  */
-int ptiMTTKRPHiCOO(
-    ptiSparseTensorHiCOO const * const hitsr,
-    ptiMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode);
-int ptiMTTKRPHiCOO_MatrixTiling(
-    ptiSparseTensorHiCOO const * const hitsr,
-    ptiRankMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode);
-int ptiOmpMTTKRPHiCOO(
-    ptiSparseTensorHiCOO const * const hitsr,
-    ptiMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode,
+int sptMTTKRPHiCOO(
+    sptSparseTensorHiCOO const * const hitsr,
+    sptMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode);
+int sptMTTKRPHiCOO_MatrixTiling(
+    sptSparseTensorHiCOO const * const hitsr,
+    sptRankMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode);
+int sptOmpMTTKRPHiCOO(
+    sptSparseTensorHiCOO const * const hitsr,
+    sptMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode,
     const int tk,
     const int tb);
-int ptiOmpMTTKRPHiCOO_MatrixTiling(
-    ptiSparseTensorHiCOO const * const hitsr,
-    ptiRankMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode,
+int sptOmpMTTKRPHiCOO_MatrixTiling(
+    sptSparseTensorHiCOO const * const hitsr,
+    sptRankMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode,
     const int tk,
     const int tb);
-int ptiOmpMTTKRPHiCOO_MatrixTiling_Scheduled(
-    ptiSparseTensorHiCOO const * const hitsr,
-    ptiRankMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode,
+int sptOmpMTTKRPHiCOO_MatrixTiling_Scheduled(
+    sptSparseTensorHiCOO const * const hitsr,
+    sptRankMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode,
     const int tk,
     const int tb,
     int balanced);
-int ptiOmpMTTKRPHiCOO_MatrixTiling_Scheduled_Reduce(
-    ptiSparseTensorHiCOO const * const hitsr,
-    ptiRankMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiRankMatrix * copy_mats[],    // temporary matrices for reduction
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode,
+int sptOmpMTTKRPHiCOO_MatrixTiling_Scheduled_Reduce(
+    sptSparseTensorHiCOO const * const hitsr,
+    sptRankMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptRankMatrix * copy_mats[],    // temporary matrices for reduction
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode,
     const int tk,
     const int tb,
     int balanced);
-int ptiOmpMTTKRPHiCOO_MatrixTiling_Scheduled_Reduce_Two(
-    ptiSparseTensorHiCOO const * const hitsr,
-    ptiRankMatrix * mats[],     // mats[nmodes] as temporary space.
-    ptiRankMatrix * copy_mats[],    // temporary matrices for reduction
-    ptiIndex const mats_order[],    // Correspond to the mode order of X.
-    ptiIndex const mode,
+int sptOmpMTTKRPHiCOO_MatrixTiling_Scheduled_Reduce_Two(
+    sptSparseTensorHiCOO const * const hitsr,
+    sptRankMatrix * mats[],     // mats[nmodes] as temporary space.
+    sptRankMatrix * copy_mats[],    // temporary matrices for reduction
+    sptIndex const mats_order[],    // Correspond to the mode order of X.
+    sptIndex const mode,
     const int tk,
     const int tb);
-int ptiCudaMTTKRPHiCOO(
-    ptiSparseTensorHiCOO const * const hitsr,
-    ptiMatrix ** const mats,     // mats[nmodes] as temporary space.
-    ptiIndex * const mats_order,    // Correspond to the mode order of X.
-    ptiIndex const mode,
-    ptiNnzIndex const max_nnzb,
+int sptCudaMTTKRPHiCOO(
+    sptSparseTensorHiCOO const * const hitsr,
+    sptMatrix ** const mats,     // mats[nmodes] as temporary space.
+    sptIndex * const mats_order,    // Correspond to the mode order of X.
+    sptIndex const mode,
+    sptNnzIndex const max_nnzb,
     int const impl_num);
-int ptiMTTKRPKernelHiCOO(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiNnzIndex max_nnzb,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiIndex blength,
+int sptMTTKRPKernelHiCOO(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptNnzIndex max_nnzb,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptIndex blength,
     const int impl_num,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats);
-int ptiTTMHiCOO_MatrixTiling(
-    ptiSparseTensorHiCOO * const Y,
-    ptiSparseTensorHiCOO const * const X,
-    ptiRankMatrix * U,     // mats[nmodes] as temporary space.
-    ptiIndex const mode);
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats);
+int sptTTMHiCOO_MatrixTiling(
+    sptSparseTensorHiCOO * const Y,
+    sptSparseTensorHiCOO const * const X,
+    sptRankMatrix * U,     // mats[nmodes] as temporary space.
+    sptIndex const mode);
+
+/// Binary search
+sptNnzIndex sptBinarySearch(sptIndex *array, int arrayStart, int arrayEnd, sptIndex target);
+
+
+/// Hash table for SPA
+typedef struct{
+    unsigned long long key;
+    sptValue val;
+    struct node_t *next;
+}node_t;
+
+typedef struct{
+    int size;
+    node_t **list;
+}table_t;
+
+table_t *htCreate(const unsigned int size);
+unsigned int htHashCode(unsigned long long key);
+void htUpdate( table_t *t, unsigned long long key, sptValue val);
+void htInsert( table_t *t, unsigned long long key, sptValue val);
+sptValue htGet( table_t *t,unsigned long long key);
+void htFree( table_t *t);
+
+
+/// Hash table for the second tensor
+typedef struct {
+    unsigned int    len;        /// length
+    unsigned int    cap;        /// capacity
+    unsigned long long* key_FM; /// key with free modes of the second tensor
+    sptValue* val;              /// data
+} tensor_value;
+
+typedef struct{
+    unsigned long long key;
+    tensor_value val;
+    struct tensor_node_t *next;
+}tensor_node_t;
+
+typedef struct{
+    int size;
+     tensor_node_t **list;
+}tensor_table_t;
+
+int tensor_htNewValueVector(tensor_value *vec, unsigned int len, unsigned int cap);
+int tensor_htAppendValueVector(tensor_value *vec, unsigned long long key_FM, sptValue val);
+void tensor_htFreeValueVector(tensor_value *vec);
+
+tensor_table_t *tensor_htCreate(const unsigned int size);
+unsigned int tensor_htHashCode(unsigned long long key);
+void tensor_htUpdate( tensor_table_t *t, unsigned long long key_cmodes, unsigned long long key_fmodes, sptValue value);
+void tensor_htInsert( tensor_table_t *t, unsigned long long key_cmodes, unsigned long long key_fmodes, sptValue value);
+tensor_value tensor_htGet( tensor_table_t *t,unsigned long long key);
+void tensor_htFree( tensor_table_t *t);
+
 
 
 #endif

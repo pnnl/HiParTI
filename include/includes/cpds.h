@@ -16,47 +16,47 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HIPARTI_CPDS_H
-#define HIPARTI_CPDS_H
+#ifndef PARTI_CPDS_H
+#define PARTI_CPDS_H
 
 
 /**
  * CP-ALS
  */
-int ptiCpdAls(
-  ptiSparseTensor const * const ptien,
-  ptiIndex const rank,
-  ptiIndex const niters,
+int sptCpdAls(
+  sptSparseTensor const * const spten,
+  sptIndex const rank,
+  sptIndex const niters,
   double const tol,
-  ptiKruskalTensor * ktensor);
-int ptiOmpCpdAls(
-  ptiSparseTensor const * const ptien,
-  ptiIndex const rank,
-  ptiIndex const niters,
+  sptKruskalTensor * ktensor);
+int sptOmpCpdAls(
+  sptSparseTensor const * const spten,
+  sptIndex const rank,
+  sptIndex const niters,
   double const tol,
   const int tk,
   const int use_reduce,
-  ptiKruskalTensor * ktensor);
-int ptiCudaCpdAls(
-  ptiSparseTensor const * const ptien,
-  ptiIndex const rank,
-  ptiIndex const niters,
+  sptKruskalTensor * ktensor);
+int sptCudaCpdAls(
+  sptSparseTensor const * const spten,
+  sptIndex const rank,
+  sptIndex const niters,
   double const tol,
-  ptiKruskalTensor * ktensor);
-int ptiCpdAlsHiCOO(
-  ptiSparseTensorHiCOO const * const hitsr,
-  ptiIndex const rank,
-  ptiIndex const niters,
+  sptKruskalTensor * ktensor);
+int sptCpdAlsHiCOO(
+  sptSparseTensorHiCOO const * const hitsr,
+  sptIndex const rank,
+  sptIndex const niters,
   double const tol,
-  ptiRankKruskalTensor * ktensor);
-int ptiOmpCpdAlsHiCOO(
-  ptiSparseTensorHiCOO const * const hitsr,
-  ptiIndex const rank,
-  ptiIndex const niters,
+  sptRankKruskalTensor * ktensor);
+int sptOmpCpdAlsHiCOO(
+  sptSparseTensorHiCOO const * const hitsr,
+  sptIndex const rank,
+  sptIndex const niters,
   double const tol,
   const int tk,
   const int tb,
   int balanced,
-  ptiRankKruskalTensor * ktensor);
+  sptRankKruskalTensor * ktensor);
 
 #endif

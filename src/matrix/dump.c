@@ -16,31 +16,32 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "../error/error.h"
 
 
 /**
  * Dum a dense matrix to file
  *
- * @param mtx   a valid pointer to a ptiMatrix variable
+ * @param mtx   a valid pointer to a sptMatrix variable
  * @param fp a file pointer
  *
  */
-int ptiDumpMatrix(ptiMatrix *mtx, FILE *fp) {
+int sptDumpMatrix(sptMatrix *mtx, FILE *fp) {
     int iores;
-    ptiIndex nrows = mtx->nrows;
-    ptiIndex ncols = mtx->ncols;
-    ptiIndex stride = mtx->stride;
-    iores = fprintf(fp, "%"HIPARTI_PRI_INDEX " x %"HIPARTI_PRI_INDEX " matrix\n", nrows, ncols);
-    pti_CheckOSError(iores < 0, "Mtx Dump");
-    for(ptiIndex i=0; i < nrows; ++i) {
-      for(ptiIndex j=0; j < ncols; ++j) {
-          iores = fprintf(fp, "%.2"HIPARTI_PRI_VALUE "\t", mtx->values[i * stride + j]);
-          pti_CheckOSError(iores < 0, "Mtx Dump");
+    sptIndex nrows = mtx->nrows;
+    sptIndex ncols = mtx->ncols;
+    sptIndex stride = mtx->stride;
+    iores = fprintf(fp, "%"PARTI_PRI_INDEX " x %"PARTI_PRI_INDEX " matrix\n", nrows, ncols);
+    spt_CheckOSError(iores < 0, "Mtx Dump");
+    for(sptIndex i=0; i < nrows; ++i) {
+      for(sptIndex j=0; j < ncols; ++j) {
+          iores = fprintf(fp, "%.2"PARTI_PRI_VALUE "\t", mtx->values[i * stride + j]);
+          spt_CheckOSError(iores < 0, "Mtx Dump");
       }
       iores = fprintf(fp, "\n");
     }
@@ -52,21 +53,21 @@ int ptiDumpMatrix(ptiMatrix *mtx, FILE *fp) {
 /**
  * Dum a dense rank matrix to file
  *
- * @param mtx   a valid pointer to a ptiMatrix variable
+ * @param mtx   a valid pointer to a sptMatrix variable
  * @param fp a file pointer
  *
  */
-int ptiDumpRankMatrix(ptiRankMatrix *mtx, FILE *fp) {
+int sptDumpRankMatrix(sptRankMatrix *mtx, FILE *fp) {
     int iores;
-    ptiIndex nrows = mtx->nrows;
-    ptiElementIndex ncols = mtx->ncols;
-    ptiElementIndex stride = mtx->stride;
-    iores = fprintf(fp, "%"HIPARTI_PRI_INDEX " x %"HIPARTI_PRI_ELEMENT_INDEX " matrix\n", nrows, ncols);
-    pti_CheckOSError(iores < 0, "RankMtx Dump");
-    for(ptiIndex i=0; i < nrows; ++i) {
-      for(ptiElementIndex j=0; j < ncols; ++j) {
-          iores = fprintf(fp, "%.2"HIPARTI_PRI_VALUE "\t", mtx->values[i * stride + j]);
-          pti_CheckOSError(iores < 0, "RankMtx Dump");
+    sptIndex nrows = mtx->nrows;
+    sptElementIndex ncols = mtx->ncols;
+    sptElementIndex stride = mtx->stride;
+    iores = fprintf(fp, "%"PARTI_PRI_INDEX " x %"PARTI_PRI_ELEMENT_INDEX " matrix\n", nrows, ncols);
+    spt_CheckOSError(iores < 0, "RankMtx Dump");
+    for(sptIndex i=0; i < nrows; ++i) {
+      for(sptElementIndex j=0; j < ncols; ++j) {
+          iores = fprintf(fp, "%.2"PARTI_PRI_VALUE "\t", mtx->values[i * stride + j]);
+          spt_CheckOSError(iores < 0, "RankMtx Dump");
       }
       iores = fprintf(fp, "\n");
     }

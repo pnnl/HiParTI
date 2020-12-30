@@ -16,16 +16,16 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 
-__global__ static void pti_TTMKernel(
-    ptiValue *Y_val,
-    const ptiValue *X_val,
-    ptiIndex XY_stride,
-    ptiNnzIndex XY_nnz,
-    const ptiValue *U_val,
-    ptiIndex U_nrows, ptiIndex U_ncols, ptiIndex U_stride,
-    ptiIndex mode
+__global__ static void spt_TTMKernel(
+    sptValue *Y_val,
+    const sptValue *X_val,
+    sptIndex XY_stride,
+    sptNnzIndex XY_nnz,
+    const sptValue *U_val,
+    sptIndex U_nrows, sptIndex U_ncols, sptIndex U_stride,
+    sptIndex mode
 ) {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     if(tid < XY_nnz) {
@@ -39,26 +39,26 @@ __global__ static void pti_TTMKernel(
     }
 }
 
-static ptiNnzIndex pti_GetBlockCount(ptiNnzIndex threads) {
+static sptNnzIndex spt_GetBlockCount(sptNnzIndex threads) {
     return (threads / 256) + ((threads & 255) != 0);
 }
 
-int ptiCudaSemiSparseTensorMulMatrix(
-    ptiSemiSparseTensor *Y,
-    const ptiSemiSparseTensor *X,
-    const ptiMatrix *U,
-    ptiIndex mode
+int sptCudaSemiSparseTensorMulMatrix(
+    sptSemiSparseTensor *Y,
+    const sptSemiSparseTensor *X,
+    const sptMatrix *U,
+    sptIndex mode
 ) {
     int result;
-    ptiIndex *ind_buf;
-    ptiIndex m;
+    sptIndex *ind_buf;
+    sptIndex m;
     if(mode >= X->nmodes) {
         return -1;
     }
     if(X->ndims[mode] != U->nrows) {
         return -1;
     }
-    ind_buf = new ptiIndex[X->nmodes * sizeof *ind_buf];
+    ind_buf = new sptIndex[X->nmodes * sizeof *ind_buf];
     if(!ind_buf) {
         return -1;
     }
@@ -66,53 +66,53 @@ int ptiCudaSemiSparseTensorMulMatrix(
         ind_buf[m] = X->ndims[m];
     }
     ind_buf[mode] = U->ncols;
-    result = ptiNewSemiSparseTensor(Y, X->nmodes, mode, ind_buf);
+    result = sptNewSemiSparseTensor(Y, X->nmodes, mode, ind_buf);
     delete[] ind_buf;
     if(result) {
         return result;
     }
     for(m = 0; m < Y->nmodes; ++m) {
         if(m != mode) {
-            ptiFreeIndexVector(&Y->inds[m]);
-            result = ptiCopyIndexVector(&Y->inds[m], &X->inds[m], 1);
+            sptFreeIndexVector(&Y->inds[m]);
+            result = sptCopyIndexVector(&Y->inds[m], &X->inds[m], 1);
             if(result != 0) {
                 return result;
             }
         }
     }
-    result = ptiResizeMatrix(&Y->values, X->nnz);
+    result = sptResizeMatrix(&Y->values, X->nnz);
     if(result != 0) {
         return result;
     }
     Y->nnz = X->nnz;
 
-    ptiNnzIndex blocks_count = pti_GetBlockCount(Y->nnz);
-    ptiNnzIndex threads_count = blocks_count * 256;
-    ptiValue *Y_val = NULL;
-    result = cudaMalloc((void **) &Y_val, threads_count * Y->stride * sizeof (ptiValue));
+    sptNnzIndex blocks_count = spt_GetBlockCount(Y->nnz);
+    sptNnzIndex threads_count = blocks_count * 256;
+    sptValue *Y_val = NULL;
+    result = cudaMalloc((void **) &Y_val, threads_count * Y->stride * sizeof (sptValue));
     if(result != 0) {
         return result; // TODO: map error code?
     }
-    ptiValue *X_val = NULL;
-    result = cudaMalloc((void **) &X_val, threads_count * X->stride * sizeof (ptiValue));
+    sptValue *X_val = NULL;
+    result = cudaMalloc((void **) &X_val, threads_count * X->stride * sizeof (sptValue));
     if(result != 0) {
         return result; // TODO: map error code?
     }
-    cudaMemcpy(X_val, X->values.values, X->nnz * X->stride * sizeof (ptiValue), cudaMemcpyHostToDevice);
-    ptiValue *U_val = NULL;
-    result = cudaMalloc((void **) &U_val, U->nrows * U->stride * sizeof (ptiValue));
+    cudaMemcpy(X_val, X->values.values, X->nnz * X->stride * sizeof (sptValue), cudaMemcpyHostToDevice);
+    sptValue *U_val = NULL;
+    result = cudaMalloc((void **) &U_val, U->nrows * U->stride * sizeof (sptValue));
     if(result != 0) {
         return result;
     }
-    cudaMemcpy(U_val, U->values, U->nrows * U->stride * sizeof (ptiValue), cudaMemcpyHostToDevice);
+    cudaMemcpy(U_val, U->values, U->nrows * U->stride * sizeof (sptValue), cudaMemcpyHostToDevice);
 
-    pti_TTMKernel<<<blocks_count, 256>>>(Y_val, X_val, Y->stride, Y->nnz, U_val, U->nrows, U->ncols, U->stride, mode);
+    spt_TTMKernel<<<blocks_count, 256>>>(Y_val, X_val, Y->stride, Y->nnz, U_val, U->nrows, U->ncols, U->stride, mode);
     result = cudaGetLastError();
     if(result != 0) {
         return result;
     }
 
-    cudaMemcpy(Y->values.values, Y_val, Y->nnz * Y->stride * sizeof (ptiValue), cudaMemcpyDeviceToHost);
+    cudaMemcpy(Y->values.values, Y_val, Y->nnz * Y->stride * sizeof (sptValue), cudaMemcpyDeviceToHost);
     cudaFree(U_val); cudaFree(X_val); cudaFree(Y_val);
 
     return 0;

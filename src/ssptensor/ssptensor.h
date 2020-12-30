@@ -23,25 +23,25 @@
 extern "C" {
 #endif
 
-#include <HiParTI.h>
- 
+#include <ParTI.h>
+#include "../error/error.h"
 
-int pti_SemiSparseTensorAppend(ptiSemiSparseTensor *tsr, const ptiIndex indices[], ptiValue value);
-int pti_SemiSparseTensorCompareIndices(const ptiSemiSparseTensor *tsr1, ptiNnzIndex ind1, const ptiSemiSparseTensor *tsr2, ptiNnzIndex ind2);
-int pti_SemiSparseTensorMergeValues(ptiSemiSparseTensor *tsr);
+int spt_SemiSparseTensorAppend(sptSemiSparseTensor *tsr, const sptIndex indices[], sptValue value);
+int spt_SemiSparseTensorCompareIndices(const sptSemiSparseTensor *tsr1, sptNnzIndex ind1, const sptSemiSparseTensor *tsr2, sptNnzIndex ind2);
+int spt_SemiSparseTensorMergeValues(sptSemiSparseTensor *tsr);
 
-double pti_SemiSparseTensorNorm(const ptiSemiSparseTensor *X);
+double spt_SemiSparseTensorNorm(const sptSemiSparseTensor *X);
 
-int pti_SemiSparseTensorSetMode(
-    ptiSemiSparseTensor       *dest,
-    const ptiSemiSparseTensor *src,
-    ptiIndex                    newmode
+int spt_SemiSparseTensorSetMode(
+    sptSemiSparseTensor       *dest,
+    const sptSemiSparseTensor *src,
+    sptIndex                    newmode
 );
-int pti_SemiSparseTensorToSparseMatrixCSR(
-    ptiValue                  *csrVal,
-    ptiNnzIndex                        *csrRowPtr,
-    ptiIndex                        *csrColInd,
-    const ptiSemiSparseTensor  *tsr
+int spt_SemiSparseTensorToSparseMatrixCSR(
+    sptValue                  *csrVal,
+    sptNnzIndex                        *csrRowPtr,
+    sptIndex                        *csrColInd,
+    const sptSemiSparseTensor  *tsr
 );
 
 #ifdef __cplusplus

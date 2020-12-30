@@ -16,13 +16,13 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
-__global__ static void pti_DotMulKernel(size_t nnz, ptiValue *Z_val, ptiValue *X_val, ptiValue *Y_val)
+__global__ static void spt_DotMulKernel(size_t nnz, sptValue *Z_val, sptValue *X_val, sptValue *Y_val)
 {
-    const ptiNnzIndex tidx = threadIdx.x;
-    const ptiNnzIndex i = (ptiNnzIndex) (blockIdx.x * blockDim.x + tidx);
+    const sptNnzIndex tidx = threadIdx.x;
+    const sptNnzIndex i = (sptNnzIndex) (blockIdx.x * blockDim.x + tidx);
 
     if(i < nnz) {
         Z_val[i] = X_val[i] * Y_val[i];
@@ -39,72 +39,72 @@ __global__ static void pti_DotMulKernel(size_t nnz, ptiValue *Z_val, ptiValue *X
  * @param[in]  X the input X
  * @param[in]  Y the input Y
  */
-int ptiCudaSparseTensorDotMulEq(ptiSparseTensor *Z, const ptiSparseTensor *X, const ptiSparseTensor *Y) {
+int sptCudaSparseTensorDotMulEq(sptSparseTensor *Z, const sptSparseTensor *X, const sptSparseTensor *Y) {
     int result;
     /* Ensure X and Y are in same shape */
     if(Y->nmodes != X->nmodes) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "CUDA SpTns DotMul", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "CUDA SpTns DotMul", "shape mismatch");
     }
-    for(ptiIndex i = 0; i < X->nmodes; ++i) {
+    for(sptIndex i = 0; i < X->nmodes; ++i) {
         if(Y->ndims[i] != X->ndims[i]) {
-            pti_CheckError(PTIERR_SHAPE_MISMATCH, "CUDA SpTns DotMul", "shape mismatch");
+            spt_CheckError(SPTERR_SHAPE_MISMATCH, "CUDA SpTns DotMul", "shape mismatch");
         }
     }
     /* Ensure X and Y have exactly the same nonzero distribution */
     if(Y->nnz != X->nnz) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns DotMul", "nonzero distribution mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns DotMul", "nonzero distribution mismatch");
     }
-    ptiNnzIndex nnz = X->nnz;
+    sptNnzIndex nnz = X->nnz;
 
-    ptiCopySparseTensor(Z, X, 1);
+    sptCopySparseTensor(Z, X, 1);
 
-    ptiValue *X_val = NULL;
-    result = cudaMalloc((void **) &X_val, X->nnz * sizeof (ptiValue));
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
-    result = cudaMemcpy(X_val, X->values.data, X->nnz * sizeof (ptiValue), cudaMemcpyHostToDevice);
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    sptValue *X_val = NULL;
+    result = cudaMalloc((void **) &X_val, X->nnz * sizeof (sptValue));
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    result = cudaMemcpy(X_val, X->values.data, X->nnz * sizeof (sptValue), cudaMemcpyHostToDevice);
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
 
-    ptiValue *Y_val = NULL;
-    result = cudaMalloc((void **) &Y_val, Y->nnz * sizeof (ptiValue));
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
-    result = cudaMemcpy(Y_val, Y->values.data, Y->nnz * sizeof (ptiValue), cudaMemcpyHostToDevice);
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    sptValue *Y_val = NULL;
+    result = cudaMalloc((void **) &Y_val, Y->nnz * sizeof (sptValue));
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    result = cudaMemcpy(Y_val, Y->values.data, Y->nnz * sizeof (sptValue), cudaMemcpyHostToDevice);
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
 
-    ptiValue *Z_val = NULL;
-    result = cudaMalloc((void **) &Z_val, X->nnz * sizeof (ptiValue));
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
-    result = cudaMemset(Z_val, 0, X->nnz * sizeof (ptiValue));
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    sptValue *Z_val = NULL;
+    result = cudaMalloc((void **) &Z_val, X->nnz * sizeof (sptValue));
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    result = cudaMemset(Z_val, 0, X->nnz * sizeof (sptValue));
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
 
-    ptiNnzIndex nthreads = 128;
-    ptiNnzIndex nblocks = (nnz + nthreads -1)/ nthreads;
+    sptNnzIndex nthreads = 128;
+    sptNnzIndex nblocks = (nnz + nthreads -1)/ nthreads;
 
-    ptiTimer timer;
-    ptiNewTimer(&timer, 0);
-    ptiStartTimer(timer);
+    sptTimer timer;
+    sptNewTimer(&timer, 0);
+    sptStartTimer(timer);
 
-    pti_DotMulKernel<<<nblocks, nthreads>>>(nnz, Z_val, X_val, Y_val);
+    spt_DotMulKernel<<<nblocks, nthreads>>>(nnz, Z_val, X_val, Y_val);
     result = cudaThreadSynchronize();
 
-    ptiStopTimer(timer);
-    ptiPrintElapsedTime(timer, "CUDA  SpTns DotMul");
-    ptiFreeTimer(timer);
+    sptStopTimer(timer);
+    sptPrintElapsedTime(timer, "CUDA  SpTns DotMul");
+    sptFreeTimer(timer);
 
-    cudaMemcpy(Z->values.data, Z_val, Z->nnz * sizeof (ptiValue), cudaMemcpyDeviceToHost);
+    cudaMemcpy(Z->values.data, Z_val, Z->nnz * sizeof (sptValue), cudaMemcpyDeviceToHost);
 
     result = cudaFree(X_val);
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
     result = cudaFree(Y_val);
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
     result = cudaFree(Z_val);
-    pti_CheckCudaError(result != 0, "CUDA SpTns DotMul");
+    spt_CheckCudaError(result != 0, "CUDA SpTns DotMul");
 
     /* Check whether elements become zero after adding.
        If so, fill the gap with the [nnz-1]'th element.
     */
-    pti_SparseTensorCollectZeros(Z);
+    spt_SparseTensorCollectZeros(Z);
     /* Sort the indices */
-    ptiSparseTensorSortIndex(Z, 1, 1);
+    sptSparseTensorSortIndex(Z, 1, 1);
 
     return 0;
 }

@@ -1,6 +1,25 @@
 cmake_minimum_required(VERSION 3.2)  # CMake 3.2 supports CUDA 7.0
-project(HiParTI)
+project(ParTI)
 
-add_subdirectory("tensor")
-add_subdirectory("matrix")
+if(USE_CUDA)
+    file(GLOB_RECURSE BENCH_SRCS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "*.c" "*.cu")
+else()
+    file(GLOB_RECURSE BENCH_SRCS RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" "*.c")
+endif()
+    list(REMOVE_ITEM BENCH_SRCS "mttkrp_renumber.c" "mttkrp_hicoo_renumber_matrixtiling.c" "ttm_renumber.c" "cpd_hicoo.c" "cpd.c")
 
+
+foreach(BENCH_SRC IN LISTS BENCH_SRCS)
+    get_filename_component(BENCH_EXE "${BENCH_SRC}" NAME_WE)
+    if(USE_CUDA)
+        cuda_add_executable("${BENCH_EXE}" "${BENCH_SRC}")
+    else()
+        add_executable("${BENCH_EXE}" "${BENCH_SRC}")
+    endif()
+    set_target_properties("${BENCH_EXE}" PROPERTIES C_STANDARD 99)
+    if(BUILD_STATIC)
+        target_link_libraries("${BENCH_EXE}" ParTI_s)
+    else()
+        target_link_libraries("${BENCH_EXE}" ParTI)
+    endif()
+endforeach(BENCH_SRC)

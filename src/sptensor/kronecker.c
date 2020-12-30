@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 #include <stdlib.h>
 #include <string.h>
@@ -27,25 +27,25 @@
  * @param[in]  A the input A
  * @param[in]  B the input B
  */
-int ptiSparseTensorKroneckerMul(ptiSparseTensor *Y, const ptiSparseTensor *A, const ptiSparseTensor *B) {
-    ptiIndex nmodes;
-    ptiIndex mode;
-    ptiIndex *inds;
-    ptiNnzIndex i, j;
+int sptSparseTensorKroneckerMul(sptSparseTensor *Y, const sptSparseTensor *A, const sptSparseTensor *B) {
+    sptIndex nmodes;
+    sptIndex mode;
+    sptIndex *inds;
+    sptNnzIndex i, j;
     int result;
     if(A->nmodes != B->nmodes) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns Kronecker", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns Kronecker", "shape mismatch");
     }
     nmodes = A->nmodes;
     inds = malloc(nmodes * sizeof *inds);
-    pti_CheckOSError(!inds, "SpTns Kronecker");
+    spt_CheckOSError(!inds, "SpTns Kronecker");
     for(mode = 0; mode < nmodes; ++mode) {
         inds[mode] = A->ndims[mode] * B->ndims[mode];
     }
-    result = ptiNewSparseTensor(Y, nmodes, inds);
-    pti_CheckError(result, "SpTns Kronecker", NULL);
+    result = sptNewSparseTensor(Y, nmodes, inds);
+    spt_CheckError(result, "SpTns Kronecker", NULL);
     free(inds);
-    pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns Kronecker", "shape mismatch");
+    spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns Kronecker", "shape mismatch");
     /* For each element in A and B */
     for(i = 0; i < A->nnz; ++i) {
         for(j = 0; j < B->nnz; ++j) {
@@ -58,17 +58,17 @@ int ptiSparseTensorKroneckerMul(ptiSparseTensor *Y, const ptiSparseTensor *A, co
                 ! More important: The resulting Kronecker-product size is fixed, nnzA * nnzB.
                 Don't need realloc.
 
-               sb: ptiAppendSizeVector already do acculumating
+               sb: sptAppendSizeVector already do acculumating
             */
             for(mode = 0; mode < nmodes; ++mode) {
-                result = ptiAppendIndexVector(&Y->inds[mode], A->inds[mode].data[i] * B->ndims[mode] + B->inds[mode].data[j]);
-                pti_CheckError(result, "SpTns Kronecker", NULL);
+                result = sptAppendIndexVector(&Y->inds[mode], A->inds[mode].data[i] * B->ndims[mode] + B->inds[mode].data[j]);
+                spt_CheckError(result, "SpTns Kronecker", NULL);
             }
-            result = ptiAppendValueVector(&Y->values, A->values.data[i] * B->values.data[j]);
-            pti_CheckError(result, "SpTns Kronecker", NULL);
+            result = sptAppendValueVector(&Y->values, A->values.data[i] * B->values.data[j]);
+            spt_CheckError(result, "SpTns Kronecker", NULL);
             ++Y->nnz;
         }
     }
-    ptiSparseTensorSortIndex(Y, 1, 1);
+    sptSparseTensorSortIndex(Y, 1, 1);
     return result;
 }

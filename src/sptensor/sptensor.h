@@ -16,62 +16,62 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HIPARTI_SPTENSOR_H
-#define HIPARTI_SPTENSOR_H
+#ifndef PARTI_SPTENSOR_H
+#define PARTI_SPTENSOR_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#include <HiParTI.h>
- 
+#include <ParTI.h>
+#include "../error/error.h"
 
-double pti_SparseTensorNorm(const ptiSparseTensor *X);
+double spt_SparseTensorNorm(const sptSparseTensor *X);
 
-int pti_SparseTensorCompareIndices(ptiSparseTensor * const tsr1, ptiNnzIndex loc1,  ptiSparseTensor * const tsr2, ptiNnzIndex loc2);
-int pti_SparseTensorCompareIndicesMorton2D(
-    ptiSparseTensor * const tsr1,
+int spt_SparseTensorCompareIndices(sptSparseTensor * const tsr1, sptNnzIndex loc1,  sptSparseTensor * const tsr2, sptNnzIndex loc2);
+int spt_SparseTensorCompareIndicesMorton2D(
+    sptSparseTensor * const tsr1, 
     uint64_t loc1, 
-    ptiSparseTensor * const tsr2,
+    sptSparseTensor * const tsr2, 
     uint64_t loc2,
-    ptiIndex * mode_order,
-    ptiElementIndex sb_bits);
-int pti_SparseTensorCompareIndicesExceptSingleMode(ptiSparseTensor * const tsr1, ptiNnzIndex loc1, ptiSparseTensor * const tsr2, ptiNnzIndex loc2, ptiIndex * const mode_order);
-int pti_SparseTensorCompareIndicesExceptSingleModeCantor(ptiSparseTensor * const tsr1, ptiNnzIndex loc1, ptiSparseTensor * const tsr2, ptiNnzIndex loc2, ptiIndex * const mode_order);
-int pti_SparseTensorCompareIndicesRowBlock(
-    ptiSparseTensor * const tsr1,
-    ptiNnzIndex loc1,
-    ptiSparseTensor * const tsr2,
-    ptiNnzIndex loc2,
-    ptiElementIndex sk_bits);
-int pti_SparseTensorCompareIndicesExceptSingleModeRowBlock(
-    ptiSparseTensor * const tsr1,
-    ptiNnzIndex loc1,
-    ptiSparseTensor * const tsr2,
-    ptiNnzIndex loc2,
-    ptiIndex * const mode_order,
-    ptiElementIndex sk_bits);
-int pti_SparseTensorCompareIndicesRange(ptiSparseTensor * const tsr, ptiNnzIndex loc, ptiIndex * const inds1, ptiIndex * const inds2);
-int pti_SparseTensorCompareIndicesCustomize(ptiSparseTensor * const tsr1, ptiNnzIndex loc1, ptiIndex * const mode_order_1, ptiSparseTensor * const tsr2, ptiNnzIndex loc2, ptiIndex * const mode_order_2, ptiIndex num_ncmodes);
-void pti_SwapValues(ptiSparseTensor *tsr, ptiNnzIndex ind1, ptiNnzIndex ind2);
+    sptIndex * mode_order,
+    sptElementIndex sb_bits);
+int spt_SparseTensorCompareIndicesExceptSingleMode(sptSparseTensor * const tsr1, sptNnzIndex loc1, sptSparseTensor * const tsr2, sptNnzIndex loc2, sptIndex * const mode_order);
+int spt_SparseTensorCompareIndicesExceptSingleModeCantor(sptSparseTensor * const tsr1, sptNnzIndex loc1, sptSparseTensor * const tsr2, sptNnzIndex loc2, sptIndex * const mode_order);
+int spt_SparseTensorCompareIndicesRowBlock(
+    sptSparseTensor * const tsr1, 
+    sptNnzIndex loc1, 
+    sptSparseTensor * const tsr2, 
+    sptNnzIndex loc2,
+    sptElementIndex sk_bits);
+int spt_SparseTensorCompareIndicesExceptSingleModeRowBlock(
+    sptSparseTensor * const tsr1, 
+    sptNnzIndex loc1, 
+    sptSparseTensor * const tsr2, 
+    sptNnzIndex loc2,
+    sptIndex * const mode_order,
+    sptElementIndex sk_bits);
+int spt_SparseTensorCompareIndicesRange(sptSparseTensor * const tsr, sptNnzIndex loc, sptIndex * const inds1, sptIndex * const inds2);
+int spt_SparseTensorCompareIndicesCustomize(sptSparseTensor * const tsr1, sptNnzIndex loc1, sptIndex * const mode_order_1, sptSparseTensor * const tsr2, sptNnzIndex loc2, sptIndex * const mode_order_2, sptIndex num_ncmodes);
+void spt_SwapValues(sptSparseTensor *tsr, sptNnzIndex ind1, sptNnzIndex ind2);
 
-void pti_SparseTensorCollectZeros(ptiSparseTensor *tsr);
+void spt_SparseTensorCollectZeros(sptSparseTensor *tsr);
 
-int pti_DistSparseTensor(ptiSparseTensor * tsr,
+int spt_DistSparseTensor(sptSparseTensor * tsr,
     int const nthreads,
-    ptiNnzIndex * const dist_nnzs,
-    ptiIndex * dist_nrows);
+    sptNnzIndex * const dist_nnzs,
+    sptIndex * dist_nrows);
 
-int pti_DistSparseTensorFixed(ptiSparseTensor * tsr,
+int spt_DistSparseTensorFixed(sptSparseTensor * tsr,
     int const nthreads,
-    ptiNnzIndex * const dist_nnzs,
-    ptiNnzIndex * dist_nrows);
+    sptNnzIndex * const dist_nnzs,
+    sptNnzIndex * dist_nrows);
 
-int pti_GetSubSparseTensor(ptiSparseTensor *dest, const ptiSparseTensor *tsr, const ptiIndex limit_low[], const ptiIndex limit_high[]);
+int spt_GetSubSparseTensor(sptSparseTensor *dest, const sptSparseTensor *tsr, const sptIndex limit_low[], const sptIndex limit_high[]);
 
-struct pti_TagSplitHandle {
+struct spt_TagSplitHandle {
     size_t nsplits;
-    ptiSparseTensor *tsr;
+    sptSparseTensor *tsr;
     size_t *max_size_by_mode;
     size_t *inds_low;
     size_t *inds_high;
@@ -80,46 +80,46 @@ struct pti_TagSplitHandle {
     size_t *cut_idx;
     size_t *cut_low;
 };
-typedef struct pti_TagSplitHandle *pti_SplitHandle;
-int pti_StartSplitSparseTensor(pti_SplitHandle *handle, const ptiSparseTensor *tsr, const ptiIndex max_size_by_mode[]);
-int pti_SplitSparseTensor(ptiSparseTensor *dest, ptiIndex *inds_low, ptiIndex *inds_high, pti_SplitHandle handle);
-void pti_FinishSplitSparseTensor(pti_SplitHandle handle);
+typedef struct spt_TagSplitHandle *spt_SplitHandle;
+int spt_StartSplitSparseTensor(spt_SplitHandle *handle, const sptSparseTensor *tsr, const sptIndex max_size_by_mode[]);
+int spt_SplitSparseTensor(sptSparseTensor *dest, sptIndex *inds_low, sptIndex *inds_high, spt_SplitHandle handle);
+void spt_FinishSplitSparseTensor(spt_SplitHandle handle);
 
-typedef struct pti_TagSplitResult {
-    ptiSparseTensor tensor;
-    ptiIndex *inds_low;
-    ptiIndex *inds_high;
-    struct pti_TagSplitResult *next;    // Not use now, for one gpu implementation. Now all splits inside one queue has a real subtsr contigously, the length is marked by real_queue_size.
-} pti_SplitResult;
+typedef struct spt_TagSplitResult {
+    sptSparseTensor tensor;
+    sptIndex *inds_low;
+    sptIndex *inds_high;
+    struct spt_TagSplitResult *next;    // Not use now, for one gpu implementation. Now all splits inside one queue has a real subtsr contigously, the length is marked by real_queue_size.
+} spt_SplitResult;
 /* FIXME: index_limit_by_mode is not used yet */
-int pti_SparseTensorGetAllSplits(pti_SplitResult **splits, size_t *nsplits, const ptiSparseTensor *tsr, const size_t nnz_limit_by_mode[], const size_t index_limit_by_mode[], int emit_map);
-// void pti_SparseTensorFreeAllSplits(pti_SplitResult *splits);
-void pti_SparseTensorFreeAllSplits(pti_SplitResult *splits, size_t const nsplits);
-int pti_SparseTensorDumpAllSplits(const pti_SplitResult * splits, ptiIndex const nsplits, FILE *fp);
+int spt_SparseTensorGetAllSplits(spt_SplitResult **splits, size_t *nsplits, const sptSparseTensor *tsr, const size_t nnz_limit_by_mode[], const size_t index_limit_by_mode[], int emit_map);
+// void spt_SparseTensorFreeAllSplits(spt_SplitResult *splits);
+void spt_SparseTensorFreeAllSplits(spt_SplitResult *splits, size_t const nsplits);
+int spt_SparseTensorDumpAllSplits(const spt_SplitResult * splits, sptIndex const nsplits, FILE *fp);
 
 // abundant
-int pti_SparseTensorBalancedSplit(
-    pti_SplitResult **splits,
+int spt_SparseTensorBalancedSplit(
+    spt_SplitResult **splits,
     size_t *nsplits,
-    ptiSparseTensor *tsr,
+    sptSparseTensor *tsr,
     const size_t nnz_limit,
     const size_t index_limit_by_mode[]);
 
 /* Coarse-grain split */
-int pti_ComputeCoarseSplitParameters(
+int spt_ComputeCoarseSplitParameters(
     size_t * split_idx_len,
     size_t const nsplits,
-    ptiSparseTensor * const tsr,
+    sptSparseTensor * const tsr,
     size_t * const slice_nnzs,
     size_t const idx_begin,
     size_t const mode,
     size_t const stride,
     size_t const memwords);
 
-int pti_ComputeCoarseSplitParametersOne(
+int spt_ComputeCoarseSplitParametersOne(
     size_t * split_idx_len, // size: nsplits
     size_t const nsplits,
-    ptiSparseTensor * const tsr,
+    sptSparseTensor * const tsr,
     size_t * const slice_nnzs,
     size_t const idx_begin,
     size_t const mode,
@@ -127,89 +127,89 @@ int pti_ComputeCoarseSplitParametersOne(
     size_t const memwords,
     size_t const max_nthreadsx);
 
-int pti_CoarseSplitSparseTensorBatch(
-    pti_SplitResult * splits,
+int spt_CoarseSplitSparseTensorBatch(
+    spt_SplitResult * splits,
     size_t * nnz_split_next,
     size_t * real_nsplits,
     size_t const nsplits,
     size_t * const split_idx_len,
     const size_t mode,
-    ptiSparseTensor * tsr,
+    sptSparseTensor * tsr,
     size_t const nnz_split_begin);
 
 // abundant
-int pti_CoarseSplitSparseTensorAll(
-    pti_SplitResult ** splits,
+int spt_CoarseSplitSparseTensorAll(
+    spt_SplitResult ** splits,
     size_t * nsplits,
     const size_t split_idx_len,
     const size_t mode,
-    ptiSparseTensor * tsr);
+    sptSparseTensor * tsr);
 
 // abundant
-int ptiCoarseSplitSparseTensor(ptiSparseTensor *tsr, const int num, ptiSparseTensor *cstsr);
+int sptCoarseSplitSparseTensor(sptSparseTensor *tsr, const int num, sptSparseTensor *cstsr);
 
-int pti_CoarseSplitSparseTensorStep(
-    pti_SplitResult * splits,
+int spt_CoarseSplitSparseTensorStep(
+    spt_SplitResult * splits,
     size_t * nnz_ptr_next,
     const size_t split_idx_len,
     const size_t mode,
-    const ptiSparseTensor * tsr,
+    const sptSparseTensor * tsr,
     const size_t nnz_ptr_begin);
 
 
 /* Fine-grain split */
-int pti_ComputeFineSplitParametersOne(
+int spt_ComputeFineSplitParametersOne(
     size_t * split_nnz_len, // Scalar
-    ptiSparseTensor * const tsr,
+    sptSparseTensor * const tsr,
     size_t const max_nthreadsx);
 
-int pti_ComputeFineSplitParameters(
+int spt_ComputeFineSplitParameters(
     size_t * split_nnz_len, // Scalar
-    ptiSparseTensor * const tsr,
+    sptSparseTensor * const tsr,
     size_t const stride,
     size_t const memwords);
 
-int pti_FineSplitSparseTensorBatch(
-    pti_SplitResult * splits,
+int spt_FineSplitSparseTensorBatch(
+    spt_SplitResult * splits,
     size_t * nnz_split_next,
     size_t * real_nsplits,
     const size_t nsplits,
     const size_t split_nnz_len,
-    ptiSparseTensor * tsr,
+    sptSparseTensor * tsr,
     size_t const nnz_split_begin);
 
-int pti_FineSplitSparseTensorStep(
-    pti_SplitResult * split,
+int spt_FineSplitSparseTensorStep(
+    spt_SplitResult * split,
     size_t * nnz_ptr_next,
     const size_t split_nnz_len,
-    ptiSparseTensor * tsr,
+    sptSparseTensor * tsr,
     const size_t nnz_ptr_begin);
 
 
 /* Medium-grain split */
-int pti_ComputeMediumSplitParameters(
+int spt_ComputeMediumSplitParameters(
     size_t * split_idx_len, // size: nmodes
-    ptiSparseTensor * const tsr,
+    sptSparseTensor * const tsr,
     size_t const stride,
     size_t const memwords);
 
-int pti_MediumSplitSparseTensorBatch(
-    pti_SplitResult * splits,
+int spt_MediumSplitSparseTensorBatch(
+    spt_SplitResult * splits,
     size_t * nnz_split_next,
     size_t * real_nsplits,
     size_t const nsplits,
     size_t * const split_idx_lens,
-    ptiSparseTensor * tsr,
+    sptSparseTensor * tsr,
     size_t const nnz_split_begin,
     size_t * est_inds_low,
     size_t * est_inds_high);
 
-int pti_MediumSplitSparseTensorStep(    // In-place
-    pti_SplitResult * split,
+int spt_MediumSplitSparseTensorStep(    // In-place
+    spt_SplitResult * split,
     size_t * nnz_ptr_next,
     size_t * subnnz,
     size_t * const split_idx_lens,
-    ptiSparseTensor * tsr,
+    sptSparseTensor * tsr,
     const size_t nnz_ptr_begin,
     size_t * const est_inds_low,
     size_t * const est_inds_high);

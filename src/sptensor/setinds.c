@@ -17,7 +17,7 @@
 */
 
 #include <assert.h>
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
 /**
@@ -27,29 +27,29 @@
  * @param[out] fiberidx a vector to store the starting position of each fiber, should be uninitialized
  * @param[in]  ref      a pointer to a valid sparse tensor
  */
-int ptiSparseTensorSetIndices(
-    ptiSparseTensor *ref,
-    ptiIndex * mode_order,
-    ptiIndex num_cmodes,
-    ptiNnzIndexVector *fiberidx)
+int sptSparseTensorSetIndices(
+    sptSparseTensor *ref,
+    sptIndex * mode_order,
+    sptIndex num_cmodes,
+    sptNnzIndexVector *fiberidx) 
 {
     int result;
-    result = ptiNewNnzIndexVector(fiberidx, 0, 0);
-    pti_CheckError(result, "SspTns SetIndices", NULL);
+    result = sptNewNnzIndexVector(fiberidx, 0, 0);
+    spt_CheckError(result, "SspTns SetIndices", NULL);
 
-    ptiNnzIndex lastidx = ref->nnz;
-    for(ptiNnzIndex i = 0; i < ref->nnz; ++i) {
-        if(lastidx == ref->nnz || pti_SparseTensorCompareIndicesCustomize(ref, lastidx, mode_order, ref, i, mode_order, num_cmodes) != 0) {
+    sptNnzIndex lastidx = ref->nnz;
+    for(sptNnzIndex i = 0; i < ref->nnz; ++i) {
+        if(lastidx == ref->nnz || spt_SparseTensorCompareIndicesCustomize(ref, lastidx, mode_order, ref, i, mode_order, num_cmodes) != 0) {
             lastidx = i;
             if(fiberidx != NULL) {
-                result = ptiAppendNnzIndexVector(fiberidx, i);
-                pti_CheckError(result, "SpTns SetIndices", NULL);
+                result = sptAppendNnzIndexVector(fiberidx, i);
+                spt_CheckError(result, "SpTns SetIndices", NULL);
             }
         }
     }
     if(fiberidx != NULL) {
-        result = ptiAppendNnzIndexVector(fiberidx, ref->nnz);
-        pti_CheckError(result, "SspTns SetIndices", NULL);
+        result = sptAppendNnzIndexVector(fiberidx, ref->nnz);
+        spt_CheckError(result, "SspTns SetIndices", NULL);
     }
       
     return 0;

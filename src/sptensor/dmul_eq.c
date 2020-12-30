@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
 /**
@@ -26,43 +26,43 @@
  * @param[in]  X the input X
  * @param[in]  Y the input Y
  */
-int ptiSparseTensorDotMulEq(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y)
+int sptSparseTensorDotMulEq(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y)
 {
-    ptiNnzIndex i;
+    sptNnzIndex i;
     /* Ensure X and Y are in same shape */
     if(Y->nmodes != X->nmodes) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns DotMul", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns DotMul", "shape mismatch");
     }
     for(i = 0; i < X->nmodes; ++i) {
         if(Y->ndims[i] != X->ndims[i]) {
-            pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns DotMul", "shape mismatch");
+            spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns DotMul", "shape mismatch");
         }
     }
     /* Ensure X and Y have exactly the same nonzero distribution */
     if(Y->nnz != X->nnz) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns DotMul", "nonzero distribution mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns DotMul", "nonzero distribution mismatch");
     }
-    ptiNnzIndex nnz = X->nnz;
+    sptNnzIndex nnz = X->nnz;
 
-    ptiCopySparseTensor(Z, X, 1);
+    sptCopySparseTensor(Z, X, 1);
 
-    ptiTimer timer;
-    ptiNewTimer(&timer, 0);
-    ptiStartTimer(timer);
+    sptTimer timer;
+    sptNewTimer(&timer, 0);
+    sptStartTimer(timer);
 
     for(i=0; i< nnz; ++i)
         Z->values.data[i] = X->values.data[i] * Y->values.data[i];
 
-    ptiStopTimer(timer);
-    ptiPrintElapsedTime(timer, "CPU  SpTns DotMul");
-    ptiFreeTimer(timer);
+    sptStopTimer(timer);
+    sptPrintElapsedTime(timer, "CPU  SpTns DotMul");
+    sptFreeTimer(timer);
 
     /* Check whether elements become zero after adding.
        If so, fill the gap with the [nnz-1]'th element.
     */
-    pti_SparseTensorCollectZeros(Z);
+    spt_SparseTensorCollectZeros(Z);
     /* Sort the indices */
-    ptiSparseTensorSortIndex(Z, 1, 1);
+    sptSparseTensorSortIndex(Z, 1, 1);
     
     return 0;
 }

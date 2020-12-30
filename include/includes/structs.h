@@ -16,8 +16,8 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HIPARTI_STRUCTS_H
-#define HIPARTI_STRUCTS_H
+#ifndef PARTI_STRUCTS_H
+#define PARTI_STRUCTS_H
 
 
 
@@ -25,128 +25,113 @@
  * Dense dynamic array of specified type of scalars
  */
 typedef struct {
-    ptiNnzIndex    len;   /// length
-    ptiNnzIndex    cap;   /// capacity
-    ptiValue    *data; /// data
-} ptiValueVector;
+    sptNnzIndex    len;   /// length
+    sptNnzIndex    cap;   /// capacity
+    sptValue    *data; /// data
+} sptValueVector;
 
 /**
  * Dense dynamic array of different types of integers
  */
 typedef struct {
-    ptiNnzIndex len;   /// length
-    ptiNnzIndex cap;   /// capacity
-    ptiIndex *data; /// data
-} ptiIndexVector;
+    sptNnzIndex len;   /// length
+    sptNnzIndex cap;   /// capacity
+    sptIndex *data; /// data
+} sptIndexVector;
 
 typedef struct {
-    ptiNnzIndex len;   /// length
-    ptiNnzIndex cap;   /// capacity
-    ptiElementIndex *data; /// data
-} ptiElementIndexVector;
+    sptNnzIndex len;   /// length
+    sptNnzIndex cap;   /// capacity
+    sptElementIndex *data; /// data
+} sptElementIndexVector;
 
 typedef struct {
-    ptiNnzIndex len;   /// length
-    ptiNnzIndex cap;   /// capacity
-    ptiBlockIndex *data; /// data
-} ptiBlockIndexVector;
+    sptNnzIndex len;   /// length
+    sptNnzIndex cap;   /// capacity
+    sptBlockIndex *data; /// data
+} sptBlockIndexVector;
 
 typedef struct {
-    ptiNnzIndex len;   /// length
-    ptiNnzIndex cap;   /// capacity
-    ptiNnzIndex *data; /// data
-} ptiNnzIndexVector;
+    sptNnzIndex len;   /// length
+    sptNnzIndex cap;   /// capacity
+    sptNnzIndex *data; /// data
+} sptNnzIndexVector;
 
 
 /**
  * Dense matrix type
  */
 typedef struct {
-    ptiIndex nrows;   /// # rows
-    ptiIndex ncols;   /// # columns
-    ptiIndex cap;     /// # of allocated rows
-    ptiIndex stride;  /// ncols rounded up to 8
-    ptiValue *values; /// values, length cap*stride
-} ptiMatrix;
+    sptIndex nrows;   /// # rows
+    sptIndex ncols;   /// # columns
+    sptIndex cap;     /// # of allocated rows
+    sptIndex stride;  /// ncols rounded up to 8
+    sptValue *values; /// values, length cap*stride
+} sptMatrix;
 
 
 /**
  * Dense matrix type, ncols = small rank (<= 256)
  */
 typedef struct {
-    ptiIndex    nrows;   /// # rows
-    ptiElementIndex    ncols;   /// # columns, <= 256
-    ptiIndex    cap;     /// # of allocated rows
-    ptiElementIndex    stride;  /// ncols rounded up to 8, <= 256
-    ptiValue *values; /// values, length cap*stride
-} ptiRankMatrix;
+    sptIndex    nrows;   /// # rows
+    sptElementIndex    ncols;   /// # columns, <= 256
+    sptIndex    cap;     /// # of allocated rows
+    sptElementIndex    stride;  /// ncols rounded up to 8, <= 256
+    sptValue *values; /// values, length cap*stride
+} sptRankMatrix;
 
 /**
  * Sparse matrix type, COO format
  */
 typedef struct {
-    ptiIndex nrows;  /// # rows
-    ptiIndex ncols;  /// # colums
-    ptiNnzIndex nnz;    /// # non-zeros
-    ptiIndexVector rowind; /// row indices, length nnz
-    ptiIndexVector colind; /// column indices, length nnz
-    ptiValueVector values; /// non-zero values, length nnz
-} ptiSparseMatrix;
+    sptIndex nrows;  /// # rows
+    sptIndex ncols;  /// # colums
+    sptNnzIndex nnz;    /// # non-zeros
+    sptIndexVector rowind; /// row indices, length nnz
+    sptIndexVector colind; /// column indices, length nnz
+    sptValueVector values; /// non-zero values, length nnz
+} sptSparseMatrix;
 
 
 /**
  * Sparse matrix type, CSR format
  */
 typedef struct {
-    ptiIndex nrows;  /// # rows
-    ptiIndex ncols;  /// # colums
-    ptiNnzIndex nnz;    /// # non-zeros
-    ptiNnzIndexVector rowptr; /// row indices, length nnz
-    ptiIndexVector colind; /// column indices, length nnz
-    ptiValueVector values; /// non-zero values, length nnz
-} ptiSparseMatrixCSR;
-
-
-/**
- * Sparse tensor type, Hierarchical COO format (HiCOO)
- */
-typedef struct {
-    /* Basic information */
-    ptiIndex            nrows;  /// # rows
-    ptiIndex            ncols;  /// # columns
-    ptiNnzIndex         nnz;         /// # non-zeros
-
-    /* Parameters */
-    ptiElementIndex       sb_bits;         /// block size by nnz
-    ptiElementIndex       sk_bits;         /// superblock size by nnz
-
-    /* Index data arrays */
-    ptiNnzIndexVector         bptr;      /// Block pointers to all nonzeros, nb = bptr.length - 1
-    ptiBlockIndexVector       bindI;    /// Block indices for rows, length nb
-    ptiBlockIndexVector       bindJ;    /// Block indices for columns, length nb
-    ptiElementIndexVector     eindI;    /// Element indices within each block for rows, length nnz
-    ptiElementIndexVector     eindJ;    /// Element indices within each block for columns, length nnz
-    ptiValueVector            values;      /// non-zero values, length nnz
-
-    /* Scheduling information */    /// TODO: move scheduler out of HiCOO format
-    ptiNnzIndexVector         kptr;      /// Nonzero kernel pointers in 1-D array, indexing blocks. ptiIndexVector may be enough
-    ptiIndexVector            *kschr;    /// Kernel scheduler
-    ptiIndex                  nkiters;     /// max-length of iterations
-} ptiSparseMatrixHiCOO;
-
+    sptIndex nrows;  /// # rows
+    sptIndex ncols;  /// # colums
+    sptNnzIndex nnz;    /// # non-zeros
+    sptNnzIndexVector rowptr; /// row indices, length nnz
+    sptIndexVector colind; /// column indices, length nnz
+    sptValueVector values; /// non-zero values, length nnz
+} sptSparseMatrixCSR;
 
 
 /**
  * Sparse tensor type, COO format
  */
 typedef struct {
-    ptiIndex nmodes;      /// # modes
-    ptiIndex * sortorder;  /// the order in which the indices are sorted
-    ptiIndex * ndims;      /// size of each mode, length nmodes
-    ptiNnzIndex nnz;         /// # non-zeros
-    ptiIndexVector * inds;       /// indices of each element, length [nmodes][nnz]
-    ptiValueVector values;      /// non-zero values, length nnz
-} ptiSparseTensor;
+    sptIndex nmodes;      /// # modes
+    sptIndex * sortorder;  /// the order in which the indices are sorted
+    sptIndex * ndims;      /// size of each mode, length nmodes
+    sptNnzIndex nnz;         /// # non-zeros
+    sptIndexVector * inds;       /// indices of each element, length [nmodes][nnz]
+    sptValueVector values;      /// non-zero values, length nnz
+} sptSparseTensor;
+
+
+/**
+ * Sparse tensor type, COO format
+ */
+typedef struct {
+    sptIndex nmodes;      /// # modes
+    sptIndex * sortorder;  /// the order in which the indices are sorted
+    sptIndex * ndims;      /// size of each mode, length nmodes
+    sptNnzIndex nnz;         /// # non-zeros
+    sptIndex * ndims_block;     /// Unified dense block size
+    sptIndexVector * inds;       /// indices of each element, length [nmodes][nnz]
+    sptValueVector * values;      /// non-zero values, length [nnz][\prod ndims_block]
+} sptSparseTensorBlock;
 
 
 /**
@@ -154,65 +139,36 @@ typedef struct {
  */
 typedef struct {
     /* Basic information */
-    ptiIndex            nmodes;      /// # modes
-    ptiIndex            *sortorder;  /// the order in which the indices are sorted
-    ptiIndex            *ndims;      /// size of each mode, length nmodes
-    ptiNnzIndex         nnz;         /// # non-zeros
+    sptIndex            nmodes;      /// # modes
+    sptIndex            *sortorder;  /// the order in which the indices are sorted
+    sptIndex            *ndims;      /// size of each mode, length nmodes
+    sptNnzIndex         nnz;         /// # non-zeros
 
     /* Parameters */
-    ptiElementIndex       sb_bits;         /// block size by nnz
-    ptiElementIndex       sk_bits;         /// kernel size by nnz
-    ptiElementIndex       sc_bits;         /// chunk size by blocks
+    sptElementIndex       sb_bits;         /// block size by nnz
+    sptElementIndex       sk_bits;         /// kernel size by nnz
+    sptElementIndex       sc_bits;         /// chunk size by blocks
 
     /* Scheduling information */
-    ptiNnzIndexVector         kptr;      /// Nonzero kernel pointers in 1-D array, indexing blocks. ptiIndexVector may be enough
-    ptiIndexVector            **kschr;    /// Kernel scheduler
-    ptiIndex                  *nkiters;     /// max-length of iterations
-    ptiNnzIndexVector         cptr;      /// Chunk pointers to evenly split or combine blocks in a group, indexing blocks. ptiIndexVector may be enough
+    sptNnzIndexVector         kptr;      /// Nonzero kernel pointers in 1-D array, indexing blocks. sptIndexVector may be enough
+    sptIndexVector            **kschr;    /// Kernel scheduler
+    sptIndex                  *nkiters;     /// max-length of iterations
+    sptNnzIndexVector         cptr;      /// Chunk pointers to evenly split or combine blocks in a group, indexing blocks. sptIndexVector may be enough
 
     /* Balanced scheduler */
-    ptiIndexVector            **kschr_balanced;    /// Balanced kernel scheduler, nmodes * ndims / sk * even_nks
-    ptiIndexVector            **kschr_balanced_pos;     /// indicators of partitions
-    ptiIndex                  *nkpars;     /// max-length of partitions
-    ptiIndexVector            *kschr_rest;    /// The rest imbalanced kernels
-    ptiNnzIndexVector         knnzs;        /// Record the nnzs of each kernel
+    sptIndexVector            **kschr_balanced;    /// Balanced kernel scheduler, nmodes * ndims / sk * even_nks
+    sptIndexVector            **kschr_balanced_pos;     /// indicators of partitions
+    sptIndex                  *nkpars;     /// max-length of partitions
+    sptIndexVector            *kschr_rest;    /// The rest imbalanced kernels
+    sptNnzIndexVector         knnzs;        /// Record the nnzs of each kernel
 
     /* Index data arrays */
-    ptiNnzIndexVector         bptr;      /// Block pointers to all nonzeros
-    ptiBlockIndexVector       *binds;    /// Block indices within each group
-    ptiElementIndexVector     *einds;    /// Element indices within each block
-    ptiValueVector            values;      /// non-zero values, length nnz
-} ptiSparseTensorHiCOO;
+    sptNnzIndexVector         bptr;      /// Block pointers to all nonzeros
+    sptBlockIndexVector       *binds;    /// Block indices within each group
+    sptElementIndexVector     *einds;    /// Element indices within each block 
+    sptValueVector            values;      /// non-zero values, length nnz
+} sptSparseTensorHiCOO;
 
-
-/**
- * Sparse tensor type, extended Hierarchical COO format (ExHiCOO)
- */
-typedef struct {
-    /* Basic information */
-    ptiIndex            nmodes;      /// # modes
-    ptiIndex            *sortorder;  /// the order in which the indices are sorted
-    ptiIndex            *ndims;      /// size of each mode, length nmodes
-    ptiNnzIndex         nnz;         /// # non-zeros
-
-    /* Parameters */
-    ptiIndex              block_lvl;     /// blocking levels, could be 0
-    ptiIndex              bit_length[MAX_BLOCK_LVLS + 1];
-    ptiIndex              block_sizes[MAX_BLOCK_LVLS];     /// blocking sizes for multiple levels, not require block_sizes[l] > block_sizes[l+1]
-    ptiIndex              sk;         /// kernel size by nnz
-
-    /* Scheduling information */
-    ptiNnzIndexVector         kptr;      /// Nonzero kernel pointers in 1-D array, indexing blocks. ptiIndexVector may be enough
-    ptiIndexVector            **kschr;    /// Kernel scheduler
-    ptiIndex                  *nkiters;     /// max-length of iterations
-
-    /* Index data arrays */
-    ptiNnzIndex               num_blocks[MAX_BLOCK_LVLS];
-    ptiNnzIndex               *ptrs[MAX_BLOCK_LVLS];    /// blocking pointers, size num_blocks[l] + 1
-    void                      **inds[MAX_BLOCK_LVLS + 1];   /// blocking indices
-    ptiValueVector            values;      /// non-zero values, length nnz
-
-} ptiSparseTensorHiCOOExt;
 
 
 /**
@@ -223,42 +179,42 @@ typedef struct {
  * only different in the last mode.
  */
 typedef struct {
-    ptiIndex nmodes; /// # Modes, must >= 2
-    ptiIndex *ndims; /// size of each mode, length nmodes
-    ptiIndex mode;   /// the mode where data is stored in dense format
-    ptiNnzIndex nnz;    /// # non-zero fibers
-    ptiIndexVector *inds;  /// indices of each dense fiber, length [nmodes][nnz], the mode-th value is ignored
-    ptiIndex stride; /// ndims[mode] rounded up to 8
-    ptiMatrix     values; /// dense fibers, size nnz*ndims[mode]
-} ptiSemiSparseTensor;
+    sptIndex nmodes; /// # Modes, must >= 2
+    sptIndex *ndims; /// size of each mode, length nmodes
+    sptIndex mode;   /// the mode where data is stored in dense format
+    sptNnzIndex nnz;    /// # non-zero fibers
+    sptIndexVector *inds;  /// indices of each dense fiber, length [nmodes][nnz], the mode-th value is ignored
+    sptIndex stride; /// ndims[mode] rounded up to 8
+    sptMatrix     values; /// dense fibers, size nnz*ndims[mode]
+} sptSemiSparseTensor;
 
 
 /**
  * General Semi-sparse tensor type
  */
 typedef struct {
-    ptiIndex nmodes; /// # Modes, must >= 2
-    ptiIndex *ndims; /// size of each mode, length nmodes
-    ptiIndex ndmodes;
-    ptiIndex *dmodes;   /// the mode where data is stored in dense format, allocate nmodes sized space
-    ptiNnzIndex nnz;    /// # non-zero fibers
-    ptiIndexVector *inds;  /// indices of each dense fiber, length [nmodes][nnz], the mode-th value is ignored
-    ptiIndex *strides; /// ndims[mode] rounded up to 8
-    ptiMatrix     values; /// dense fibers, size nnz*ndims[mode]
-} ptiSemiSparseTensorGeneral;
+    sptIndex nmodes; /// # Modes, must >= 2
+    sptIndex *ndims; /// size of each mode, length nmodes
+    sptIndex ndmodes;
+    sptIndex *dmodes;   /// the mode where data is stored in dense format, allocate nmodes sized space
+    sptNnzIndex nnz;    /// # non-zero fibers
+    sptIndexVector *inds;  /// indices of each dense fiber, length [nmodes][nnz], the mode-th value is ignored
+    sptIndex *strides; /// ndims[mode] rounded up to 8
+    sptMatrix     values; /// dense fibers, size nnz*ndims[mode]
+} sptSemiSparseTensorGeneral;
 
 
 /**
  * Kruskal tensor type, for CP decomposition result
  */
 typedef struct {
-  ptiIndex nmodes;
-  ptiIndex rank;
-  ptiIndex * ndims;
-  ptiValue * lambda;
+  sptIndex nmodes;
+  sptIndex rank;
+  sptIndex * ndims;
+  sptValue * lambda;
   double fit;
-  ptiMatrix ** factors;
-} ptiKruskalTensor;
+  sptMatrix ** factors;
+} sptKruskalTensor;
 
 
 /**
@@ -266,41 +222,41 @@ typedef struct {
  * ncols = small rank (<= 256)
  */
 typedef struct {
-  ptiIndex nmodes;
-  ptiElementIndex rank;
-  ptiIndex * ndims;
-  ptiValue * lambda;
+  sptIndex nmodes;
+  sptElementIndex rank;
+  sptIndex * ndims;
+  sptValue * lambda;
   double fit;
-  ptiRankMatrix ** factors;
-} ptiRankKruskalTensor;
+  sptRankMatrix ** factors;
+} sptRankKruskalTensor;
 
 /**
  * Key-value pair structure
  */
 typedef struct 
 {
-  ptiIndex key;
-  ptiIndex value;
-} ptiKeyValuePair;
+  sptIndex key;
+  sptIndex value;
+} sptKeyValuePair;
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
 /**
  * OpenMP lock pool.
  */
 typedef struct
 {
   bool initialized;
-  ptiIndex nlocks;
-  ptiIndex padsize;
+  sptIndex nlocks;
+  sptIndex padsize;
   omp_lock_t * locks;
-} ptiMutexPool;
+} sptMutexPool;
 #else
-typedef struct ptiMutexPool ptiMutexPool;
+typedef struct sptMutexPool sptMutexPool;
 #endif
 
 /**
 * @brief This struct is written to the beginning of any binary tensor file
-*        written by SPLATT.
+*        originally supported by SPLATT.
 */
 typedef struct
 {
@@ -308,5 +264,6 @@ typedef struct
   uint64_t idx_width;
   uint64_t val_width;
 } bin_header;
+
 
 #endif

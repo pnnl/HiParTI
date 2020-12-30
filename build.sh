@@ -18,8 +18,8 @@ CMAKE_FLAGS=("${CMAKE_FLAGS[@]}" "$@")
 mkdir -p build
 cd build
 
-cmake "${CMAKE_FLAGS[@]}" ..
+cmake "${CMAKE_FLAGS[@]}" .. 
 
-make
+make CFLAGS=' -lnuma '
 
 echo "Finished. Check the 'build' directory for results."

@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <string.h>
 
 /**
@@ -29,17 +29,17 @@
  * @param[out] inds_high  high bound, length `tsr->nmodes`
  * @param[in]  tsr        a given sparse tensor
  */
-void ptiSparseTensorCalcIndexBounds(ptiIndex inds_low[], ptiIndex inds_high[], const ptiSparseTensor *tsr) {
+void sptSparseTensorCalcIndexBounds(sptIndex inds_low[], sptIndex inds_high[], const sptSparseTensor *tsr) {
 
     if(tsr->nnz == 0) {
         memset(inds_low, 0, tsr->nmodes * sizeof inds_low[0]);
         memset(inds_high, 0, tsr->nmodes * sizeof inds_high[0]);
         return;
     }
-    for(ptiIndex m = 0; m < tsr->nmodes; ++m) {
+    for(sptIndex m = 0; m < tsr->nmodes; ++m) {
         inds_low[m] = tsr->inds[m].data[0];
         inds_high[m] = tsr->inds[m].data[0] + 1;
-        for(ptiNnzIndex i = 1; i < tsr->nnz; ++i) {
+        for(sptNnzIndex i = 1; i < tsr->nnz; ++i) {
             if(tsr->inds[m].data[i] < inds_low[m]) {
                 inds_low[m] = tsr->inds[m].data[i];
             }

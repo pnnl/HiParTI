@@ -16,45 +16,45 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "hicoo.h"
 #include "mttkrp_cuda_kernels.h"
 #include <inttypes.h>
 
-int ptiMTTKRPKernelHiCOO(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiNnzIndex max_nnzb,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiIndex blength,
+int sptMTTKRPKernelHiCOO(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptNnzIndex max_nnzb,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptIndex blength,
     const int impl_num,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats)
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats)
 {
     int result = 0;
 
     /* Maximum settings */
-    ptiIndex max_nthreads_per_block = 256;
-    ptiIndex max_nblocks = 32768;
-    ptiIndex max_R = 4;
+    sptIndex max_nthreads_per_block = 256;
+    sptIndex max_nblocks = 32768;
+    sptIndex max_R = 4;
 
-    ptiIndex nthreadsx = 0;
-    ptiIndex nthreadsy = 0;
-    ptiIndex nblocks = 0;
-    ptiIndex shr_size = 0;
-    ptiNnzIndex all_nblocks = blength;
+    sptIndex nthreadsx = 0;
+    sptIndex nthreadsy = 0;
+    sptIndex nblocks = 0;
+    sptIndex shr_size = 0;
+    sptNnzIndex all_nblocks = blength;
 
     switch(nmodes) {
     case 3: /* 3-D tensors */
@@ -67,7 +67,7 @@ int ptiMTTKRPKernelHiCOO(
             } else {
                 nblocks = max_nblocks;
             }
-            // shr_size = 2 * nmodes * sizeof(ptiIndex);
+            // shr_size = 2 * nmodes * sizeof(sptIndex);
             break;
         case 2:
             nthreadsy = R;
@@ -77,7 +77,7 @@ int ptiMTTKRPKernelHiCOO(
             } else {
                 nblocks = max_nblocks;
             }
-            // shr_size = 2 * nmodes * sizeof(ptiIndex);
+            // shr_size = 2 * nmodes * sizeof(sptIndex);
             break;
         case 3:
             nthreadsx = R;
@@ -87,7 +87,7 @@ int ptiMTTKRPKernelHiCOO(
             } else {
                 nblocks = max_nblocks;
             }
-            // shr_size = 2 * nmodes * sizeof(ptiIndex);
+            // shr_size = 2 * nmodes * sizeof(sptIndex);
             break;
         case 4:
             nthreadsx = R;
@@ -101,7 +101,7 @@ int ptiMTTKRPKernelHiCOO(
             } else {
                 nblocks = max_nblocks;
             }
-            // shr_size = 2 * nmodes * sizeof(ptiIndex);
+            // shr_size = 2 * nmodes * sizeof(sptIndex);
             break;
 
         /* Matrix blocked implementations */
@@ -117,7 +117,7 @@ int ptiMTTKRPKernelHiCOO(
             } else {
                 nblocks = max_nblocks;
             }
-            // shr_size = 2 * nmodes * sizeof(ptiIndex);
+            // shr_size = 2 * nmodes * sizeof(sptIndex);
             break;
 
         /* Shared memory for the output matrix + switch block sizes */
@@ -135,7 +135,7 @@ int ptiMTTKRPKernelHiCOO(
             } else {
                 nblocks = max_nblocks;
             }
-            shr_size = (ptiIndex)pow(2, sb_bits) * R * sizeof(ptiValue);
+            shr_size = (sptIndex)pow(2, sb_bits) * R * sizeof(sptValue);
             break;
 
         /* Shared memory for three matrices + switch block sizes */
@@ -153,7 +153,7 @@ int ptiMTTKRPKernelHiCOO(
             } else {
                 nblocks = max_nblocks;
             }
-            shr_size = nmodes * (ptiIndex)pow(2, sb_bits) * R * sizeof(ptiValue);
+            shr_size = nmodes * (sptIndex)pow(2, sb_bits) * R * sizeof(sptValue);
             break;
 
         }
@@ -161,8 +161,8 @@ int ptiMTTKRPKernelHiCOO(
         dim3 dimBlock(nthreadsx, nthreadsy);
         switch(impl_num) {
         case 1: // Naive, 1D
-            printf("\nExecute pti_MTTKRPKernelHiCOO_3D_naive (%u, %u)\n", nblocks, nthreadsx);
-            pti_MTTKRPKernelHiCOO_3D_naive<<<nblocks, nthreadsx>>>(
+            printf("\nExecute spt_MTTKRPKernelHiCOO_3D_naive (%u, %u)\n", nblocks, nthreadsx);
+            spt_MTTKRPKernelHiCOO_3D_naive<<<nblocks, nthreadsx>>>(
                 mode,
                 nmodes,
                 nnz,
@@ -183,9 +183,9 @@ int ptiMTTKRPKernelHiCOO(
                 dev_mats);
             break;
         case 2:
-            printf("\nExecute pti_MTTKRPKernelRankHiCOO_3D_naive (%u, %u, %u)\n", nblocks, nthreadsx, nthreadsy);
+            printf("\nExecute spt_MTTKRPKernelRankHiCOO_3D_naive (%u, %u, %u)\n", nblocks, nthreadsx, nthreadsy);
 
-            pti_MTTKRPKernelRankHiCOO_3D_naive<<<nblocks, dimBlock>>>(
+            spt_MTTKRPKernelRankHiCOO_3D_naive<<<nblocks, dimBlock>>>(
                 mode,
                 nmodes,
                 nnz,
@@ -206,9 +206,9 @@ int ptiMTTKRPKernelHiCOO(
                 dev_mats);
             break;
         case 3:
-            printf("\nExecute pti_MTTKRPKernelRankSplitHiCOO_3D_naive (%u, %u, %u)\n", nblocks, nthreadsx, nthreadsy);
+            printf("\nExecute spt_MTTKRPKernelRankSplitHiCOO_3D_naive (%u, %u, %u)\n", nblocks, nthreadsx, nthreadsy);
 
-            pti_MTTKRPKernelRankSplitHiCOO_3D_naive<<<nblocks, dimBlock>>>(
+            spt_MTTKRPKernelRankSplitHiCOO_3D_naive<<<nblocks, dimBlock>>>(
                 mode,
                 nmodes,
                 nnz,
@@ -229,9 +229,9 @@ int ptiMTTKRPKernelHiCOO(
                 dev_mats);
             break;
         case 4:
-            printf("\nExecute pti_MTTKRPKernelRankSplitHiCOORB_3D_naive (%u, %u, %u)\n", nblocks, nthreadsx, nthreadsy);
+            printf("\nExecute spt_MTTKRPKernelRankSplitHiCOORB_3D_naive (%u, %u, %u)\n", nblocks, nthreadsx, nthreadsy);
 
-            pti_MTTKRPKernelRankSplitHiCOORB_3D_naive<<<nblocks, dimBlock>>>(
+            spt_MTTKRPKernelRankSplitHiCOORB_3D_naive<<<nblocks, dimBlock>>>(
                 mode,
                 nmodes,
                 nnz,
@@ -254,9 +254,9 @@ int ptiMTTKRPKernelHiCOO(
 
         /* Matrix blocked implementations */
         case 14:
-            printf("\nExecute pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked (%u, %u, %u)\n", nblocks, nthreadsx, nthreadsy);
+            printf("\nExecute spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked (%u, %u, %u)\n", nblocks, nthreadsx, nthreadsy);
 
-            pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked<<<nblocks, dimBlock>>>(
+            spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked<<<nblocks, dimBlock>>>(
                 mode,
                 nmodes,
                 nnz,
@@ -279,9 +279,9 @@ int ptiMTTKRPKernelHiCOO(
 
         /* Shared memory for the output matrix + switch block sizes */
         case 15:
-            printf("\nExecute pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM (%u, %u, %u), SM: %u bytes\n", nblocks, nthreadsx, nthreadsy, shr_size);
+            printf("\nExecute spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM (%u, %u, %u), SM: %u bytes\n", nblocks, nthreadsx, nthreadsy, shr_size);
 
-            pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM<<<nblocks, dimBlock, shr_size>>>(
+            spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM<<<nblocks, dimBlock, shr_size>>>(
                 mode,
                 nmodes,
                 nnz,
@@ -304,9 +304,9 @@ int ptiMTTKRPKernelHiCOO(
 
         /* Shared memory for three matrices + switch block sizes */
         case 16:
-            printf("\nExecute pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM (%u, %u, %u), SM: %u bytes\n", nblocks, nthreadsx, nthreadsy, shr_size);
+            printf("\nExecute spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM (%u, %u, %u), SM: %u bytes\n", nblocks, nthreadsx, nthreadsy, shr_size);
 
-            pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM<<<nblocks, dimBlock, shr_size>>>(
+            spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM<<<nblocks, dimBlock, shr_size>>>(
                 mode,
                 nmodes,
                 nnz,
@@ -332,7 +332,7 @@ int ptiMTTKRPKernelHiCOO(
     break;
     }   // End switch nmodes
     result = cudaThreadSynchronize();
-    pti_CheckCudaError(result != 0, "CUDA HiCOO SpTns MTTKRP");
+    spt_CheckCudaError(result != 0, "CUDA HiCOO SpTns MTTKRP");
 
     return 0;
 }
@@ -341,44 +341,44 @@ int ptiMTTKRPKernelHiCOO(
 /* impl_num = 01  Naive, 1-D 
  * Limitation: blockDim.x (max_nnz) <= 1024.
  */
-__global__ void pti_MTTKRPKernelHiCOO_3D_naive(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiNnzIndex blength,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats)
+__global__ void spt_MTTKRPKernelHiCOO_3D_naive(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptNnzIndex blength,
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats)
 {
-    ptiNnzIndex const all_nblocks = blength;
-    const ptiIndex tidx = threadIdx.x;
-    ptiNnzIndex z;
-    ptiIndex block_coord_mode, block_coord_1, block_coord_2;
+    sptNnzIndex const all_nblocks = blength;
+    const sptIndex tidx = threadIdx.x;
+    sptNnzIndex z;
+    sptIndex block_coord_mode, block_coord_1, block_coord_2;
 
-    ptiValue * const mvals = dev_mats[nmodes];
-    ptiIndex const times_mat_index_1 = dev_mats_order[1];
-    ptiValue * const times_mat_1 = dev_mats[times_mat_index_1];
-    ptiIndex const times_mat_index_2 = dev_mats_order[2];
-    ptiValue * const times_mat_2 = dev_mats[times_mat_index_2];
+    sptValue * const mvals = dev_mats[nmodes];
+    sptIndex const times_mat_index_1 = dev_mats_order[1];
+    sptValue * const times_mat_1 = dev_mats[times_mat_index_1];
+    sptIndex const times_mat_index_2 = dev_mats_order[2];
+    sptValue * const times_mat_2 = dev_mats[times_mat_index_2];
 
-    ptiNnzIndex num_loops_blocks = 1;
+    sptNnzIndex num_loops_blocks = 1;
     if(all_nblocks > gridDim.x) {
         num_loops_blocks = (all_nblocks + gridDim.x - 1) / gridDim.x;
     }
-    for(ptiNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
+    for(sptNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
         /* Block level */
-        ptiNnzIndex b = blockIdx.x + nb * gridDim.x;
+        sptNnzIndex b = blockIdx.x + nb * gridDim.x;
         if(b < blength) {
             /* Block indices */
             block_coord_mode = dev_binds[mode][b] << sb_bits;
@@ -386,19 +386,19 @@ __global__ void pti_MTTKRPKernelHiCOO_3D_naive(
             block_coord_2 = dev_binds[times_mat_index_2][b] << sb_bits;
 
             /* TODO: duplicated in registers */
-            ptiNnzIndex const bptr_begin = dev_bptr[b];
-            ptiNnzIndex const bptr_end = dev_bptr[b+1];
+            sptNnzIndex const bptr_begin = dev_bptr[b];
+            sptNnzIndex const bptr_end = dev_bptr[b+1];
 
             /* Thread level */
             z = tidx + bptr_begin;
             if(z < bptr_end) {
-                ptiValue const entry = dev_values[z];
-                ptiNnzIndex const mode_i = block_coord_mode + dev_einds[mode][z];
-                ptiNnzIndex const tmp_i_1 = block_coord_1 + dev_einds[times_mat_index_1][z];
-                ptiNnzIndex const tmp_i_2 = block_coord_2 + dev_einds[times_mat_index_2][z];
+                sptValue const entry = dev_values[z];
+                sptNnzIndex const mode_i = block_coord_mode + dev_einds[mode][z];
+                sptNnzIndex const tmp_i_1 = block_coord_1 + dev_einds[times_mat_index_1][z];
+                sptNnzIndex const tmp_i_2 = block_coord_2 + dev_einds[times_mat_index_2][z];
 
-                ptiValue tmp_val = 0;
-                for(ptiIndex r=0; r<R; ++r) {
+                sptValue tmp_val = 0;
+                for(sptIndex r=0; r<R; ++r) {
                     tmp_val = entry * times_mat_1[tmp_i_1 * stride + r] * times_mat_2[tmp_i_2 * stride + r];
                     atomicAdd(&(mvals[mode_i * stride + r]), tmp_val);
                 }
@@ -412,45 +412,45 @@ __global__ void pti_MTTKRPKernelHiCOO_3D_naive(
 /* impl_num = 02  Naive, 2-D 
  * Limitation: blockDim.x (max_nnz) * R <= 1024.
  */
-__global__ void pti_MTTKRPKernelRankHiCOO_3D_naive(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiNnzIndex blength,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats)
+__global__ void spt_MTTKRPKernelRankHiCOO_3D_naive(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptNnzIndex blength,
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats)
 {
-    ptiNnzIndex const all_nblocks = blength;
-    const ptiIndex tidx = threadIdx.x;
-    const ptiIndex tidy = threadIdx.y;
-    ptiNnzIndex z;
-    ptiIndex block_coord_mode, block_coord_1, block_coord_2;
+    sptNnzIndex const all_nblocks = blength;
+    const sptIndex tidx = threadIdx.x;
+    const sptIndex tidy = threadIdx.y;
+    sptNnzIndex z;
+    sptIndex block_coord_mode, block_coord_1, block_coord_2;
 
-    ptiValue * const mvals = dev_mats[nmodes];
-    ptiIndex const times_mat_index_1 = dev_mats_order[1];
-    ptiValue * const times_mat_1 = dev_mats[times_mat_index_1];
-    ptiIndex const times_mat_index_2 = dev_mats_order[2];
-    ptiValue * const times_mat_2 = dev_mats[times_mat_index_2];
+    sptValue * const mvals = dev_mats[nmodes];
+    sptIndex const times_mat_index_1 = dev_mats_order[1];
+    sptValue * const times_mat_1 = dev_mats[times_mat_index_1];
+    sptIndex const times_mat_index_2 = dev_mats_order[2];
+    sptValue * const times_mat_2 = dev_mats[times_mat_index_2];
 
-    ptiNnzIndex num_loops_blocks = 1;
+    sptNnzIndex num_loops_blocks = 1;
     if(all_nblocks > gridDim.x) {
         num_loops_blocks = (all_nblocks + gridDim.x - 1) / gridDim.x;
     }
-    for(ptiNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
+    for(sptNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
         /* Block level */
-        ptiNnzIndex b = blockIdx.x + nb * gridDim.x;
+        sptNnzIndex b = blockIdx.x + nb * gridDim.x;
         if(b < blength) {
             /* Block indices */
             block_coord_mode = dev_binds[mode][b] << sb_bits;
@@ -458,19 +458,19 @@ __global__ void pti_MTTKRPKernelRankHiCOO_3D_naive(
             block_coord_2 = dev_binds[times_mat_index_2][b] << sb_bits;
 
             /* TODO: duplicated in registers */
-            ptiNnzIndex const bptr_begin = dev_bptr[b];
-            ptiNnzIndex const bptr_end = dev_bptr[b+1];
+            sptNnzIndex const bptr_begin = dev_bptr[b];
+            sptNnzIndex const bptr_end = dev_bptr[b+1];
 
             /* Thread level */
             z = tidx + bptr_begin;
             if(z < bptr_end) {
                 /* TODO: duplicated in R threads */
-                ptiValue const entry = dev_values[z];
-                ptiNnzIndex const mode_i = block_coord_mode + dev_einds[mode][z];
-                ptiNnzIndex const tmp_i_1 = block_coord_1 + dev_einds[times_mat_index_1][z];
-                ptiNnzIndex const tmp_i_2 = block_coord_2 + dev_einds[times_mat_index_2][z];
+                sptValue const entry = dev_values[z];
+                sptNnzIndex const mode_i = block_coord_mode + dev_einds[mode][z];
+                sptNnzIndex const tmp_i_1 = block_coord_1 + dev_einds[times_mat_index_1][z];
+                sptNnzIndex const tmp_i_2 = block_coord_2 + dev_einds[times_mat_index_2][z];
 
-                ptiValue tmp_val = 0;
+                sptValue tmp_val = 0;
                 tmp_val = entry * times_mat_1[tmp_i_1 * stride + tidy] * times_mat_2[tmp_i_2 * stride + tidy];
                 atomicAdd(&(mvals[mode_i * stride + tidy]), tmp_val);
 
@@ -483,45 +483,45 @@ __global__ void pti_MTTKRPKernelRankHiCOO_3D_naive(
 /* impl_num = 03  Naive, 2-D, exchange tidx and tidy.
  * Limitation: R * blockDim.y (max_nnz) <= 1024.
  */
-__global__ void pti_MTTKRPKernelRankSplitHiCOO_3D_naive(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiNnzIndex blength,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats)
+__global__ void spt_MTTKRPKernelRankSplitHiCOO_3D_naive(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptNnzIndex blength,
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats)
 {
-    ptiNnzIndex const all_nblocks = blength;
-    const ptiIndex tidx = threadIdx.x;
-    const ptiIndex tidy = threadIdx.y;
-    ptiNnzIndex z;
-    ptiIndex block_coord_mode, block_coord_1, block_coord_2;
+    sptNnzIndex const all_nblocks = blength;
+    const sptIndex tidx = threadIdx.x;
+    const sptIndex tidy = threadIdx.y;
+    sptNnzIndex z;
+    sptIndex block_coord_mode, block_coord_1, block_coord_2;
 
-    ptiValue * const mvals = dev_mats[nmodes];
-    ptiIndex const times_mat_index_1 = dev_mats_order[1];
-    ptiValue * const times_mat_1 = dev_mats[times_mat_index_1];
-    ptiIndex const times_mat_index_2 = dev_mats_order[2];
-    ptiValue * const times_mat_2 = dev_mats[times_mat_index_2];
+    sptValue * const mvals = dev_mats[nmodes];
+    sptIndex const times_mat_index_1 = dev_mats_order[1];
+    sptValue * const times_mat_1 = dev_mats[times_mat_index_1];
+    sptIndex const times_mat_index_2 = dev_mats_order[2];
+    sptValue * const times_mat_2 = dev_mats[times_mat_index_2];
 
-    ptiNnzIndex num_loops_blocks = 1;
+    sptNnzIndex num_loops_blocks = 1;
     if(all_nblocks > gridDim.x) {
         num_loops_blocks = (all_nblocks + gridDim.x - 1) / gridDim.x;
     }
-    for(ptiNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
+    for(sptNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
         /* Block level */
-        ptiNnzIndex b = blockIdx.x + nb * gridDim.x;
+        sptNnzIndex b = blockIdx.x + nb * gridDim.x;
         if(b < blength) {
             /* Block indices */
             block_coord_mode = dev_binds[mode][b] << sb_bits;
@@ -529,18 +529,18 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOO_3D_naive(
             block_coord_2 = dev_binds[times_mat_index_2][b] << sb_bits;
 
             /* TODO: duplicated in registers */
-            ptiNnzIndex const bptr_begin = dev_bptr[b];
-            ptiNnzIndex const bptr_end = dev_bptr[b+1];
+            sptNnzIndex const bptr_begin = dev_bptr[b];
+            sptNnzIndex const bptr_end = dev_bptr[b+1];
 
             /* Thread level */
             z = tidy + bptr_begin;
             if(z < bptr_end) {
-                ptiValue const entry = dev_values[z];
-                ptiNnzIndex const mode_i = block_coord_mode + dev_einds[mode][z];
-                ptiNnzIndex const tmp_i_1 = block_coord_1 + dev_einds[times_mat_index_1][z];
-                ptiNnzIndex const tmp_i_2 = block_coord_2 + dev_einds[times_mat_index_2][z];
+                sptValue const entry = dev_values[z];
+                sptNnzIndex const mode_i = block_coord_mode + dev_einds[mode][z];
+                sptNnzIndex const tmp_i_1 = block_coord_1 + dev_einds[times_mat_index_1][z];
+                sptNnzIndex const tmp_i_2 = block_coord_2 + dev_einds[times_mat_index_2][z];
 
-                ptiValue tmp_val = 0;
+                sptValue tmp_val = 0;
                 tmp_val = entry * times_mat_1[tmp_i_1 * stride + tidx] * times_mat_2[tmp_i_2 * stride + tidx];
                 atomicAdd(&(mvals[mode_i * stride + tidx]), tmp_val);
 
@@ -553,48 +553,48 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOO_3D_naive(
 /* impl_num = 04  Naive, 2-D, with rank blocking.
  * Limitation: max_R * blockDim.y (max_nnz) <= 1024.
  */
-__global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_naive(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiNnzIndex blength,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats)
+__global__ void spt_MTTKRPKernelRankSplitHiCOORB_3D_naive(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptNnzIndex blength,
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats)
 {
-    ptiNnzIndex const all_nblocks = blength;
-    const ptiIndex tidx = threadIdx.x;
-    const ptiIndex tidy = threadIdx.y;
-    ptiNnzIndex z;
-    ptiIndex block_coord_mode, block_coord_1, block_coord_2;
-    const ptiIndex num_loops_r = R / blockDim.x;
-    const ptiIndex rest_loop = R - num_loops_r * blockDim.x;
+    sptNnzIndex const all_nblocks = blength;
+    const sptIndex tidx = threadIdx.x;
+    const sptIndex tidy = threadIdx.y;
+    sptNnzIndex z;
+    sptIndex block_coord_mode, block_coord_1, block_coord_2;
+    const sptIndex num_loops_r = R / blockDim.x;
+    const sptIndex rest_loop = R - num_loops_r * blockDim.x;
 
-    ptiValue * const mvals = dev_mats[nmodes];
-    ptiIndex const times_mat_index_1 = dev_mats_order[1];
-    ptiValue * const times_mat_1 = dev_mats[times_mat_index_1];
-    ptiIndex const times_mat_index_2 = dev_mats_order[2];
-    ptiValue * const times_mat_2 = dev_mats[times_mat_index_2];
+    sptValue * const mvals = dev_mats[nmodes];
+    sptIndex const times_mat_index_1 = dev_mats_order[1];
+    sptValue * const times_mat_1 = dev_mats[times_mat_index_1];
+    sptIndex const times_mat_index_2 = dev_mats_order[2];
+    sptValue * const times_mat_2 = dev_mats[times_mat_index_2];
 
-    ptiNnzIndex num_loops_blocks = 1;
+    sptNnzIndex num_loops_blocks = 1;
     if(all_nblocks > gridDim.x) {
         num_loops_blocks = (all_nblocks + gridDim.x - 1) / gridDim.x;
     }
 
-    for(ptiNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
+    for(sptNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
         /* Block level */
-        ptiNnzIndex b = blockIdx.x + nb * gridDim.x;
+        sptNnzIndex b = blockIdx.x + nb * gridDim.x;
         if(b < blength) {
             /* Block indices */
             block_coord_mode = dev_binds[mode][b] << sb_bits;
@@ -602,20 +602,20 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_naive(
             block_coord_2 = dev_binds[times_mat_index_2][b] << sb_bits;
 
             /* TODO: duplicated in registers */
-            ptiNnzIndex const bptr_begin = dev_bptr[b];
-            ptiNnzIndex const bptr_end = dev_bptr[b+1];
+            sptNnzIndex const bptr_begin = dev_bptr[b];
+            sptNnzIndex const bptr_end = dev_bptr[b+1];
 
             /* Thread level */
             z = tidy + bptr_begin;
             if(z < bptr_end) {
-                ptiValue const entry = dev_values[z];
-                ptiNnzIndex const mode_i = block_coord_mode + dev_einds[mode][z];
-                ptiNnzIndex const tmp_i_1 = block_coord_1 + dev_einds[times_mat_index_1][z];
-                ptiNnzIndex const tmp_i_2 = block_coord_2 + dev_einds[times_mat_index_2][z];
+                sptValue const entry = dev_values[z];
+                sptNnzIndex const mode_i = block_coord_mode + dev_einds[mode][z];
+                sptNnzIndex const tmp_i_1 = block_coord_1 + dev_einds[times_mat_index_1][z];
+                sptNnzIndex const tmp_i_2 = block_coord_2 + dev_einds[times_mat_index_2][z];
 
-                ptiIndex r;
-                ptiValue tmp_val = 0;
-                for(ptiIndex l=0; l<num_loops_r; ++l) {
+                sptIndex r;
+                sptValue tmp_val = 0;
+                for(sptIndex l=0; l<num_loops_r; ++l) {
                     r = tidx + l * blockDim.x;
                     tmp_val = entry * times_mat_1[tmp_i_1 * stride + r] * times_mat_2[tmp_i_2 * stride + r];
                     atomicAdd(&(mvals[mode_i * stride + r]), tmp_val);
@@ -638,69 +638,69 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_naive(
 /* impl_num = 14  Matrix Blocked, 2-D, with rank blocking.
  * Limitation: max_R * blockDim.y (max_nnz) <= 1024.
  */
-__global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiNnzIndex blength,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats)
+__global__ void spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptNnzIndex blength,
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats)
 {
-    ptiNnzIndex const all_nblocks = blength;
-    const ptiIndex tidx = threadIdx.x;
-    const ptiIndex tidy = threadIdx.y;
-    ptiNnzIndex z;
-    const ptiIndex num_loops_r = R / blockDim.x;
-    const ptiIndex rest_loop = R - num_loops_r * blockDim.x;
+    sptNnzIndex const all_nblocks = blength;
+    const sptIndex tidx = threadIdx.x;
+    const sptIndex tidy = threadIdx.y;
+    sptNnzIndex z;
+    const sptIndex num_loops_r = R / blockDim.x;
+    const sptIndex rest_loop = R - num_loops_r * blockDim.x;
 
-    ptiValue * const mvals = dev_mats[nmodes];
-    ptiIndex const times_mat_index_1 = dev_mats_order[1];
-    ptiValue * const times_mat_1 = dev_mats[times_mat_index_1];
-    ptiIndex const times_mat_index_2 = dev_mats_order[2];
-    ptiValue * const times_mat_2 = dev_mats[times_mat_index_2];
+    sptValue * const mvals = dev_mats[nmodes];
+    sptIndex const times_mat_index_1 = dev_mats_order[1];
+    sptValue * const times_mat_1 = dev_mats[times_mat_index_1];
+    sptIndex const times_mat_index_2 = dev_mats_order[2];
+    sptValue * const times_mat_2 = dev_mats[times_mat_index_2];
 
-    ptiNnzIndex num_loops_blocks = 1;
+    sptNnzIndex num_loops_blocks = 1;
     if(all_nblocks > gridDim.x) {
         num_loops_blocks = (all_nblocks + gridDim.x - 1) / gridDim.x;
     }
 
-    for(ptiNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
+    for(sptNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
         /* Block level */
-        ptiNnzIndex b = blockIdx.x + nb * gridDim.x;
+        sptNnzIndex b = blockIdx.x + nb * gridDim.x;
         if(b < blength) {
             /* TODO: duplicated in registers */
-            ptiValue * blocked_mvals = mvals + (dev_binds[mode][b] << sb_bits) * stride;
-            ptiValue * blocked_times_mat_1 = times_mat_1 + (dev_binds[times_mat_index_1][b] << sb_bits) * stride;
-            ptiValue * blocked_times_mat_2 = times_mat_2 + (dev_binds[times_mat_index_2][b] << sb_bits) * stride;
+            sptValue * blocked_mvals = mvals + (dev_binds[mode][b] << sb_bits) * stride;
+            sptValue * blocked_times_mat_1 = times_mat_1 + (dev_binds[times_mat_index_1][b] << sb_bits) * stride;
+            sptValue * blocked_times_mat_2 = times_mat_2 + (dev_binds[times_mat_index_2][b] << sb_bits) * stride;
 
-            ptiNnzIndex const bptr_begin = dev_bptr[b];
-            ptiNnzIndex const bptr_end = dev_bptr[b+1];
+            sptNnzIndex const bptr_begin = dev_bptr[b];
+            sptNnzIndex const bptr_end = dev_bptr[b+1];
 
             /* Thread level */
             z = tidy + bptr_begin;
             if(z < bptr_end) {
-                ptiValue const entry = dev_values[z];
-                ptiElementIndex const mode_i = dev_einds[mode][z];
-                ptiElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
-                ptiElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
+                sptValue const entry = dev_values[z];
+                sptElementIndex const mode_i = dev_einds[mode][z];
+                sptElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
+                sptElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
 
-                ptiValue * const bmvals_row = blocked_mvals + mode_i * stride;
+                sptValue * const bmvals_row = blocked_mvals + mode_i * stride;
 
-                ptiIndex r;
-                ptiValue tmp_val = 0;
-                for(ptiIndex l=0; l<num_loops_r; ++l) {
+                sptIndex r;
+                sptValue tmp_val = 0;
+                for(sptIndex l=0; l<num_loops_r; ++l) {
                     r = tidx + l * blockDim.x;
                     tmp_val = entry * blocked_times_mat_1[tmp_i_1 * stride + r] * blocked_times_mat_2[tmp_i_2 * stride + r];
                     atomicAdd(&(bmvals_row[r]), tmp_val);
@@ -725,69 +725,69 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked(
  * use shared memory for the output matrix
  * Limitation: max_R * blockDim.y (max_nnz) <= 1024.
  */
-__global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiNnzIndex blength,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats)
+__global__ void spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptNnzIndex blength,
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats)
 {
-    ptiIndex const sb_size = (ptiIndex) 1 << sb_bits;
+    sptIndex const sb_size = (sptIndex) 1 << sb_bits;
     /* Data in shared memory */
-    extern __shared__ ptiValue mempool[];
-    ptiValue * sm_blocked_mvals = mempool;
+    extern __shared__ sptValue mempool[];
+    sptValue * sm_blocked_mvals = mempool;
 
-    ptiNnzIndex const all_nblocks = blength;
-    const ptiIndex tidx = threadIdx.x;
-    const ptiIndex tidy = threadIdx.y;
-    ptiNnzIndex z;
-    const ptiIndex num_loops_r = R / blockDim.x;
-    const ptiIndex rest_loop = R - num_loops_r * blockDim.x;
-    ptiIndex r;
+    sptNnzIndex const all_nblocks = blength;
+    const sptIndex tidx = threadIdx.x;
+    const sptIndex tidy = threadIdx.y;
+    sptNnzIndex z;
+    const sptIndex num_loops_r = R / blockDim.x;
+    const sptIndex rest_loop = R - num_loops_r * blockDim.x;
+    sptIndex r;
 
-    ptiValue * const mvals = dev_mats[nmodes];
-    ptiIndex const times_mat_index_1 = dev_mats_order[1];
-    ptiValue * const times_mat_1 = dev_mats[times_mat_index_1];
-    ptiIndex const times_mat_index_2 = dev_mats_order[2];
-    ptiValue * const times_mat_2 = dev_mats[times_mat_index_2];
+    sptValue * const mvals = dev_mats[nmodes];
+    sptIndex const times_mat_index_1 = dev_mats_order[1];
+    sptValue * const times_mat_1 = dev_mats[times_mat_index_1];
+    sptIndex const times_mat_index_2 = dev_mats_order[2];
+    sptValue * const times_mat_2 = dev_mats[times_mat_index_2];
 
-    ptiNnzIndex num_loops_blocks = 1;
+    sptNnzIndex num_loops_blocks = 1;
     if(all_nblocks > gridDim.x) {
         num_loops_blocks = (all_nblocks + gridDim.x - 1) / gridDim.x;
     }
 
-    for(ptiNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
+    for(sptNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
         /* Block level */
-        ptiNnzIndex b = blockIdx.x + nb * gridDim.x;
+        sptNnzIndex b = blockIdx.x + nb * gridDim.x;
         if(b < blength) {
             /* TODO: duplicated in registers */
-            ptiIndex blocked_mode_i = dev_binds[mode][b] << sb_bits;
-            ptiValue * blocked_mvals = mvals + (dev_binds[mode][b] << sb_bits) * stride;
-            ptiValue * blocked_times_mat_1 = times_mat_1 + (dev_binds[times_mat_index_1][b] << sb_bits) * stride;
-            ptiValue * blocked_times_mat_2 = times_mat_2 + (dev_binds[times_mat_index_2][b] << sb_bits) * stride;
+            sptIndex blocked_mode_i = dev_binds[mode][b] << sb_bits;
+            sptValue * blocked_mvals = mvals + (dev_binds[mode][b] << sb_bits) * stride;
+            sptValue * blocked_times_mat_1 = times_mat_1 + (dev_binds[times_mat_index_1][b] << sb_bits) * stride;
+            sptValue * blocked_times_mat_2 = times_mat_2 + (dev_binds[times_mat_index_2][b] << sb_bits) * stride;
 
-            ptiNnzIndex const bptr_begin = dev_bptr[b];
-            ptiNnzIndex const bptr_end = dev_bptr[b+1];
+            sptNnzIndex const bptr_begin = dev_bptr[b];
+            sptNnzIndex const bptr_end = dev_bptr[b+1];
 
             /* Enough matrix reuse */
             if (bptr_end - bptr_begin > sb_size) {
 
                 /* Load mats[nmodes] into shared memory, use R instead of stride. */
                 if (tidy < sb_size) {
-                    for(ptiIndex l=0; l<num_loops_r; ++l) {
+                    for(sptIndex l=0; l<num_loops_r; ++l) {
                         r = tidx + l * blockDim.x;
                         sm_blocked_mvals[tidy * R + r] = 0;
                     }
@@ -801,17 +801,17 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM(
                 /* Thread level */
                 z = tidy + bptr_begin;
                 if(z < bptr_end) {
-                    ptiValue const entry = dev_values[z];
-                    ptiElementIndex const mode_i = dev_einds[mode][z];
-                    ptiElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
-                    ptiElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
+                    sptValue const entry = dev_values[z];
+                    sptElementIndex const mode_i = dev_einds[mode][z];
+                    sptElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
+                    sptElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
 
-                    ptiValue * const bmvals_row = sm_blocked_mvals + mode_i * R;
-                    ptiValue * const blocked_times_mat_1_row = blocked_times_mat_1 + tmp_i_1 * stride;
-                    ptiValue * const blocked_times_mat_2_row = blocked_times_mat_2 + tmp_i_2 * stride;
+                    sptValue * const bmvals_row = sm_blocked_mvals + mode_i * R;
+                    sptValue * const blocked_times_mat_1_row = blocked_times_mat_1 + tmp_i_1 * stride;
+                    sptValue * const blocked_times_mat_2_row = blocked_times_mat_2 + tmp_i_2 * stride;
 
-                    ptiValue tmp_val = 0;
-                    for(ptiIndex l=0; l<num_loops_r; ++l) {
+                    sptValue tmp_val = 0;
+                    for(sptIndex l=0; l<num_loops_r; ++l) {
                         r = tidx + l * blockDim.x;
                         tmp_val = entry * blocked_times_mat_1_row[r] * blocked_times_mat_2_row[r];
                         atomicAdd(&(bmvals_row[r]), tmp_val);
@@ -827,7 +827,7 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM(
 
                 /* Store back mats[nmodes] from shared memory */
                 if (tidy < sb_size) {
-                    for(ptiIndex l=0; l<num_loops_r; ++l) {
+                    for(sptIndex l=0; l<num_loops_r; ++l) {
                         r = tidx + l * blockDim.x;
                         atomicAdd( &(blocked_mvals[tidy * stride + r]),  sm_blocked_mvals[tidy * stride + r] );
                     }
@@ -842,15 +842,15 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM(
                 /* Thread level */
                 z = tidy + bptr_begin;
                 if(z < bptr_end) {
-                    ptiValue const entry = dev_values[z];
-                    ptiElementIndex const mode_i = dev_einds[mode][z];
-                    ptiElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
-                    ptiElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
+                    sptValue const entry = dev_values[z];
+                    sptElementIndex const mode_i = dev_einds[mode][z];
+                    sptElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
+                    sptElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
 
-                    ptiValue * const bmvals_row = blocked_mvals + mode_i * stride;
+                    sptValue * const bmvals_row = blocked_mvals + mode_i * stride;
 
-                    ptiValue tmp_val = 0;
-                    for(ptiIndex l=0; l<num_loops_r; ++l) {
+                    sptValue tmp_val = 0;
+                    for(sptIndex l=0; l<num_loops_r; ++l) {
                         r = tidx + l * blockDim.x;
                         tmp_val = entry * blocked_times_mat_1[tmp_i_1 * stride + r] * blocked_times_mat_2[tmp_i_2 * stride + r];
                         atomicAdd(&(bmvals_row[r]), tmp_val);
@@ -877,71 +877,71 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_SM(
  * use shared memory for three matrices
  * Limitation: max_R * blockDim.y (max_nnz) <= 1024.
  */
-__global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM(
-    const ptiIndex mode,
-    const ptiIndex nmodes,
-    const ptiNnzIndex nnz,
-    const ptiIndex R,
-    const ptiIndex stride,
-    const ptiElementIndex sb_bits,
-    const ptiElementIndex sc_bits,
-    const ptiNnzIndex blength,
-    const ptiNnzIndex kptr_begin,
-    const ptiNnzIndex kptr_end,
-    ptiIndex * const dev_ndims,
-    ptiNnzIndex * const dev_cptr,
-    ptiNnzIndex * const dev_bptr,
-    ptiBlockIndex ** const dev_binds,
-    ptiElementIndex ** const dev_einds,
-    ptiValue * const dev_values,
-    ptiIndex * const dev_mats_order,
-    ptiValue ** const dev_mats)
+__global__ void spt_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM(
+    const sptIndex mode,
+    const sptIndex nmodes,
+    const sptNnzIndex nnz,
+    const sptIndex R,
+    const sptIndex stride,
+    const sptElementIndex sb_bits,
+    const sptElementIndex sc_bits,
+    const sptNnzIndex blength,
+    const sptNnzIndex kptr_begin,
+    const sptNnzIndex kptr_end,
+    sptIndex * const dev_ndims,
+    sptNnzIndex * const dev_cptr,
+    sptNnzIndex * const dev_bptr,
+    sptBlockIndex ** const dev_binds,
+    sptElementIndex ** const dev_einds,
+    sptValue * const dev_values,
+    sptIndex * const dev_mats_order,
+    sptValue ** const dev_mats)
 {
-    ptiIndex const sb_size = (ptiIndex)powf(2, sb_bits);
+    sptIndex const sb_size = (sptIndex)powf(2, sb_bits);
     /* Data in shared memory */
-    extern __shared__ ptiValue mempool[];
-    ptiValue * sm_blocked_mvals = mempool;
-    ptiValue * sm_blocked_times_mat_1 = mempool + sb_size * R * sizeof(ptiValue);
-    ptiValue * sm_blocked_times_mat_2 = sm_blocked_times_mat_1 + sb_size * R * sizeof(ptiValue);
+    extern __shared__ sptValue mempool[];
+    sptValue * sm_blocked_mvals = mempool;
+    sptValue * sm_blocked_times_mat_1 = mempool + sb_size * R * sizeof(sptValue);
+    sptValue * sm_blocked_times_mat_2 = sm_blocked_times_mat_1 + sb_size * R * sizeof(sptValue);
 
-    ptiNnzIndex const all_nblocks = blength;
-    const ptiIndex tidx = threadIdx.x;
-    const ptiIndex tidy = threadIdx.y;
-    ptiNnzIndex z;
-    const ptiIndex num_loops_r = R / blockDim.x;
-    const ptiIndex rest_loop = R - num_loops_r * blockDim.x;
-    ptiIndex r;
+    sptNnzIndex const all_nblocks = blength;
+    const sptIndex tidx = threadIdx.x;
+    const sptIndex tidy = threadIdx.y;
+    sptNnzIndex z;
+    const sptIndex num_loops_r = R / blockDim.x;
+    const sptIndex rest_loop = R - num_loops_r * blockDim.x;
+    sptIndex r;
 
-    ptiValue * const mvals = dev_mats[nmodes];
-    ptiIndex const times_mat_index_1 = dev_mats_order[1];
-    ptiValue * const times_mat_1 = dev_mats[times_mat_index_1];
-    ptiIndex const times_mat_index_2 = dev_mats_order[2];
-    ptiValue * const times_mat_2 = dev_mats[times_mat_index_2];
+    sptValue * const mvals = dev_mats[nmodes];
+    sptIndex const times_mat_index_1 = dev_mats_order[1];
+    sptValue * const times_mat_1 = dev_mats[times_mat_index_1];
+    sptIndex const times_mat_index_2 = dev_mats_order[2];
+    sptValue * const times_mat_2 = dev_mats[times_mat_index_2];
 
-    ptiNnzIndex num_loops_blocks = 1;
+    sptNnzIndex num_loops_blocks = 1;
     if(all_nblocks > gridDim.x) {
         num_loops_blocks = (all_nblocks + gridDim.x - 1) / gridDim.x;
     }
 
-    for(ptiNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
+    for(sptNnzIndex nb=0; nb<num_loops_blocks; ++nb) {
         /* Block level */
-        ptiNnzIndex b = blockIdx.x + nb * gridDim.x;
+        sptNnzIndex b = blockIdx.x + nb * gridDim.x;
         if(b < blength) {
             /* TODO: duplicated in registers */
-            ptiIndex blocked_mode_i = dev_binds[mode][b] << sb_bits;
-            ptiValue * blocked_mvals = mvals + (dev_binds[mode][b] << sb_bits) * stride;
-            ptiValue * blocked_times_mat_1 = times_mat_1 + (dev_binds[times_mat_index_1][b] << sb_bits) * stride;
-            ptiValue * blocked_times_mat_2 = times_mat_2 + (dev_binds[times_mat_index_2][b] << sb_bits) * stride;
+            sptIndex blocked_mode_i = dev_binds[mode][b] << sb_bits;
+            sptValue * blocked_mvals = mvals + (dev_binds[mode][b] << sb_bits) * stride;
+            sptValue * blocked_times_mat_1 = times_mat_1 + (dev_binds[times_mat_index_1][b] << sb_bits) * stride;
+            sptValue * blocked_times_mat_2 = times_mat_2 + (dev_binds[times_mat_index_2][b] << sb_bits) * stride;
 
-            ptiNnzIndex const bptr_begin = dev_bptr[b];
-            ptiNnzIndex const bptr_end = dev_bptr[b+1];
+            sptNnzIndex const bptr_begin = dev_bptr[b];
+            sptNnzIndex const bptr_end = dev_bptr[b+1];
 
             /* Enough matrix reuse */
             if (bptr_end - bptr_begin > sb_size) {
 
                 /* Load mats[nmodes] into shared memory, use R instead of stride. */
                 if (tidy < sb_size) {
-                    for(ptiIndex l=0; l<num_loops_r; ++l) {
+                    for(sptIndex l=0; l<num_loops_r; ++l) {
                         r = tidx + l * blockDim.x;
                         sm_blocked_mvals[tidy * R + r] = 0;
                         sm_blocked_times_mat_1[tidy * R + r] = blocked_times_mat_1[tidy * stride + r];
@@ -959,17 +959,17 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM(
                 /* Thread level */
                 z = tidy + bptr_begin;
                 if(z < bptr_end) {
-                    ptiValue const entry = dev_values[z];
-                    ptiElementIndex const mode_i = dev_einds[mode][z];
-                    ptiElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
-                    ptiElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
+                    sptValue const entry = dev_values[z];
+                    sptElementIndex const mode_i = dev_einds[mode][z];
+                    sptElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
+                    sptElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
 
-                    ptiValue * const bmvals_row = sm_blocked_mvals + mode_i * R;
-                    ptiValue * const blocked_times_mat_1_row = sm_blocked_times_mat_1 + tmp_i_1 * R;
-                    ptiValue * const blocked_times_mat_2_row = sm_blocked_times_mat_2 + tmp_i_2 * R;
+                    sptValue * const bmvals_row = sm_blocked_mvals + mode_i * R;
+                    sptValue * const blocked_times_mat_1_row = sm_blocked_times_mat_1 + tmp_i_1 * R;
+                    sptValue * const blocked_times_mat_2_row = sm_blocked_times_mat_2 + tmp_i_2 * R;
 
-                    ptiValue tmp_val = 0;
-                    for(ptiIndex l=0; l<num_loops_r; ++l) {
+                    sptValue tmp_val = 0;
+                    for(sptIndex l=0; l<num_loops_r; ++l) {
                         r = tidx + l * blockDim.x;
                         tmp_val = entry * blocked_times_mat_1_row[r] * blocked_times_mat_2_row[r];
                         atomicAdd(&(bmvals_row[r]), tmp_val);
@@ -985,7 +985,7 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM(
 
                 /* Store back mats[nmodes] from shared memory */
                 if (tidy < sb_size) {
-                    for(ptiIndex l=0; l<num_loops_r; ++l) {
+                    for(sptIndex l=0; l<num_loops_r; ++l) {
                         r = tidx + l * blockDim.x;
                         atomicAdd( &(blocked_mvals[tidy * stride + r]),  sm_blocked_mvals[tidy * R + r] );
                     }
@@ -1000,15 +1000,15 @@ __global__ void pti_MTTKRPKernelRankSplitHiCOORB_3D_MatrixBlocked_AllSM(
                 /* Thread level */
                 z = tidy + bptr_begin;
                 if(z < bptr_end) {
-                    ptiValue const entry = dev_values[z];
-                    ptiElementIndex const mode_i = dev_einds[mode][z];
-                    ptiElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
-                    ptiElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
+                    sptValue const entry = dev_values[z];
+                    sptElementIndex const mode_i = dev_einds[mode][z];
+                    sptElementIndex const tmp_i_1 = dev_einds[times_mat_index_1][z];
+                    sptElementIndex const tmp_i_2 = dev_einds[times_mat_index_2][z];
 
-                    ptiValue * const bmvals_row = blocked_mvals + mode_i * stride;
+                    sptValue * const bmvals_row = blocked_mvals + mode_i * stride;
 
-                    ptiValue tmp_val = 0;
-                    for(ptiIndex l=0; l<num_loops_r; ++l) {
+                    sptValue tmp_val = 0;
+                    for(sptIndex l=0; l<num_loops_r; ++l) {
                         r = tidx + l * blockDim.x;
                         tmp_val = entry * blocked_times_mat_1[tmp_i_1 * stride + r] * blocked_times_mat_2[tmp_i_2 * stride + r];
                         atomicAdd(&(bmvals_row[r]), tmp_val);

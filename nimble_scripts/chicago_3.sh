@@ -1,0 +1,1 @@
+$SPARTA_DIR/build/benchmark/ttt -X $TENSOR_DIR/chicago.bin -Y $TENSOR_DIR/chicago.bin -m 3 -x 1 2 3 -y 1 2 3  -t 24

@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
 /**
@@ -30,13 +30,13 @@
  * Indices are compared using `limit_low <= index < limit_high`.
  * Free `out` after it is no longer needed.
  */
-int pti_GetSubSparseTensor(ptiSparseTensor *dest, const ptiSparseTensor *tsr, const ptiIndex limit_low[], const ptiIndex limit_high[])
+int spt_GetSubSparseTensor(sptSparseTensor *dest, const sptSparseTensor *tsr, const sptIndex limit_low[], const sptIndex limit_high[]) 
 {
     int result;
-    ptiNnzIndex i;
-    ptiIndex m;
-    result = ptiNewSparseTensor(dest, tsr->nmodes, tsr->ndims);
-    pti_CheckError(result, "SpTns Split", NULL);
+    sptNnzIndex i;
+    sptIndex m;
+    result = sptNewSparseTensor(dest, tsr->nmodes, tsr->ndims);
+    spt_CheckError(result, "SpTns Split", NULL);
 
     for(i = 0; i < tsr->nnz; ++i) {
         int match = 1;
@@ -48,11 +48,11 @@ int pti_GetSubSparseTensor(ptiSparseTensor *dest, const ptiSparseTensor *tsr, co
         }
         if(match) {
             for(m = 0; m < tsr->nmodes; ++m) {
-                result = ptiAppendIndexVector(&dest->inds[m], tsr->inds[m].data[i]);
-                pti_CheckError(result, "SpTns Split", NULL);
+                result = sptAppendIndexVector(&dest->inds[m], tsr->inds[m].data[i]);
+                spt_CheckError(result, "SpTns Split", NULL);
             }
-            ptiAppendValueVector(&dest->values, tsr->values.data[i]);
-            pti_CheckError(result, "SpTns Split", NULL);
+            sptAppendValueVector(&dest->values, tsr->values.data[i]);
+            spt_CheckError(result, "SpTns Split", NULL);
             ++dest->nnz;
         }
     }
@@ -61,16 +61,16 @@ int pti_GetSubSparseTensor(ptiSparseTensor *dest, const ptiSparseTensor *tsr, co
 }
 
 
-int pti_ComputeSliceSizes(
-    ptiNnzIndex * slice_nnzs,
-    ptiSparseTensor * const tsr,
-    ptiIndex const mode)
+int spt_ComputeSliceSizes(
+    sptNnzIndex * slice_nnzs, 
+    sptSparseTensor * const tsr,
+    sptIndex const mode)
 {
-    ptiIndex * const ndims = tsr->ndims;
-    ptiIndexVector * inds = tsr->inds;
+    sptIndex * const ndims = tsr->ndims;
+    sptIndexVector * inds = tsr->inds;
     
-    memset(slice_nnzs, 0, ndims[mode] * sizeof(ptiNnzIndex));
-    for(ptiNnzIndex x=0; x<tsr->nnz; ++x) {
+    memset(slice_nnzs, 0, ndims[mode] * sizeof(sptNnzIndex));
+    for(sptNnzIndex x=0; x<tsr->nnz; ++x) {
         ++ slice_nnzs[inds[mode].data[x]];
     }
 

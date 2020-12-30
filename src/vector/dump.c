@@ -16,26 +16,27 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../error/error.h"
 
 
 /**
- * Dump a dense ptiElementIndexVector to file
+ * Dump a dense sptElementIndexVector to file
  *
- * @param vec a pointer to a valid ptiElementIndexVector
+ * @param vec a pointer to a valid sptElementIndexVector
  * @param fp a file pointer
  *
  */
-int ptiDumpElementIndexVector(ptiElementIndexVector *vec, FILE *fp) {
+int sptDumpElementIndexVector(sptElementIndexVector *vec, FILE *fp) {
     int iores;
-    ptiNnzIndex len = vec->len;
-    iores = fprintf(fp, "ptiElementIndexVector length: %"HIPARTI_PRI_NNZ_INDEX "\n", len);
-    pti_CheckOSError(iores < 0, "EleIdxVec Dump");
-    for(ptiNnzIndex i=0; i < len; ++i) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_ELEMENT_INDEX "\t", vec->data[i]);
-        pti_CheckOSError(iores < 0, "EleIdxVec Dump");
+    sptNnzIndex len = vec->len;
+    iores = fprintf(fp, "sptElementIndexVector length: %"PARTI_PRI_NNZ_INDEX "\n", len);
+    spt_CheckOSError(iores < 0, "EleIdxVec Dump");
+    for(sptNnzIndex i=0; i < len; ++i) {
+        iores = fprintf(fp, "%"PARTI_PRI_ELEMENT_INDEX "\t", vec->data[i]);
+        spt_CheckOSError(iores < 0, "EleIdxVec Dump");
     }
     iores = fprintf(fp, "\n");
 
@@ -44,20 +45,20 @@ int ptiDumpElementIndexVector(ptiElementIndexVector *vec, FILE *fp) {
 
 
 /**
- * Dump a dense ptiIndexVector to file
+ * Dump a dense sptIndexVector to file
  *
- * @param vec a pointer to a valid ptiIndexVector
+ * @param vec a pointer to a valid sptIndexVector
  * @param fp a file pointer
  *
  */
-int ptiDumpIndexVector(ptiIndexVector *vec, FILE *fp) {
+int sptDumpIndexVector(sptIndexVector *vec, FILE *fp) {
     int iores;
-    ptiNnzIndex len = vec->len;
-    iores = fprintf(fp, "ptiIndexVector length: %"HIPARTI_PRI_NNZ_INDEX "\n", len);
-    pti_CheckOSError(iores < 0, "IdxVec Dump");
-    for(ptiNnzIndex i=0; i < len; ++i) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_INDEX "\t", vec->data[i]);
-        pti_CheckOSError(iores < 0, "IdxVec Dump");
+    sptNnzIndex len = vec->len;
+    iores = fprintf(fp, "sptIndexVector length: %"PARTI_PRI_NNZ_INDEX "\n", len);
+    spt_CheckOSError(iores < 0, "IdxVec Dump");
+    for(sptNnzIndex i=0; i < len; ++i) {
+        iores = fprintf(fp, "%"PARTI_PRI_INDEX "\t", vec->data[i]);
+        spt_CheckOSError(iores < 0, "IdxVec Dump");
     }
     iores = fprintf(fp, "\n");
 
@@ -66,20 +67,20 @@ int ptiDumpIndexVector(ptiIndexVector *vec, FILE *fp) {
 
 
 /**
- * Dump a dense ptiBlockIndexVector to file
+ * Dump a dense sptBlockIndexVector to file
  *
- * @param vec a pointer to a valid ptiBlockIndexVector
+ * @param vec a pointer to a valid sptBlockIndexVector
  * @param fp a file pointer
  *
  */
-int ptiDumpBlockIndexVector(ptiBlockIndexVector *vec, FILE *fp) {
+int sptDumpBlockIndexVector(sptBlockIndexVector *vec, FILE *fp) {
     int iores;
-    ptiNnzIndex len = vec->len;
-    iores = fprintf(fp, "ptiBlockIndexVector length: %"HIPARTI_PRI_NNZ_INDEX "\n", len);
-    pti_CheckOSError(iores < 0, "BlkIdxVec Dump");
-    for(ptiNnzIndex i=0; i < len; ++i) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_BLOCK_INDEX "\t", vec->data[i]);
-        pti_CheckOSError(iores < 0, "BlkIdxVec Dump");
+    sptNnzIndex len = vec->len;
+    iores = fprintf(fp, "sptBlockIndexVector length: %"PARTI_PRI_NNZ_INDEX "\n", len);
+    spt_CheckOSError(iores < 0, "BlkIdxVec Dump");
+    for(sptNnzIndex i=0; i < len; ++i) {
+        iores = fprintf(fp, "%"PARTI_PRI_BLOCK_INDEX "\t", vec->data[i]);
+        spt_CheckOSError(iores < 0, "BlkIdxVec Dump");
     }
     iores = fprintf(fp, "\n");
 
@@ -88,20 +89,20 @@ int ptiDumpBlockIndexVector(ptiBlockIndexVector *vec, FILE *fp) {
 
 
 /**
- * Dump a dense ptiNnzIndexVector to file
+ * Dump a dense sptNnzIndexVector to file
  *
- * @param vec a pointer to a valid ptiNnzIndexVector
+ * @param vec a pointer to a valid sptNnzIndexVector
  * @param fp a file pointer
  *
  */
-int ptiDumpNnzIndexVector(ptiNnzIndexVector *vec, FILE *fp) {
+int sptDumpNnzIndexVector(sptNnzIndexVector *vec, FILE *fp) {
     int iores;
-    ptiNnzIndex len = vec->len;
-    iores = fprintf(fp, "ptiNnzIndexVector length: %"HIPARTI_PRI_NNZ_INDEX "\n", len);
-    pti_CheckOSError(iores < 0, "NnzIdxVec Dump");
-    for(ptiNnzIndex i=0; i < len; ++i) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_NNZ_INDEX "\t", vec->data[i]);
-        pti_CheckOSError(iores < 0, "NnzIdxVec Dump");
+    sptNnzIndex len = vec->len;
+    iores = fprintf(fp, "sptNnzIndexVector length: %"PARTI_PRI_NNZ_INDEX "\n", len);
+    spt_CheckOSError(iores < 0, "NnzIdxVec Dump");
+    for(sptNnzIndex i=0; i < len; ++i) {
+        iores = fprintf(fp, "%"PARTI_PRI_NNZ_INDEX "\t", vec->data[i]);
+        spt_CheckOSError(iores < 0, "NnzIdxVec Dump");
     }
     iores = fprintf(fp, "\n");
 
@@ -110,20 +111,20 @@ int ptiDumpNnzIndexVector(ptiNnzIndexVector *vec, FILE *fp) {
 
 
 /**
- * Dump a dense ptiValueVector to file
+ * Dump a dense sptValueVector to file
  *
- * @param vec a pointer to a valid ptiValueVector
+ * @param vec a pointer to a valid sptValueVector
  * @param fp a file pointer
  *
  */
-int ptiDumpValueVector(ptiValueVector *vec, FILE *fp) {
+int sptDumpValueVector(sptValueVector *vec, FILE *fp) {
     int iores;
-    ptiNnzIndex len = vec->len;
-    iores = fprintf(fp, "ptiValueVector length: %"HIPARTI_PRI_NNZ_INDEX "\n", len);
-    pti_CheckOSError(iores < 0, "ValVec Dump");
-    for(ptiNnzIndex i=0; i < len; ++i) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_VALUE "\t", vec->data[i]);
-        pti_CheckOSError(iores < 0, "ValVec Dump");
+    sptNnzIndex len = vec->len;
+    iores = fprintf(fp, "sptValueVector length: %"PARTI_PRI_NNZ_INDEX "\n", len);
+    spt_CheckOSError(iores < 0, "ValVec Dump");
+    for(sptNnzIndex i=0; i < len; ++i) {
+        iores = fprintf(fp, "%"PARTI_PRI_VALUE "\t", vec->data[i]);
+        spt_CheckOSError(iores < 0, "ValVec Dump");
     }
     iores = fprintf(fp, "\n");
 
@@ -132,20 +133,20 @@ int ptiDumpValueVector(ptiValueVector *vec, FILE *fp) {
 
 
 /**
- * Dump a dense ptiIndex array to file
+ * Dump a dense sptIndex array to file
  *
- * @param array a pointer to a valid ptiIndex array
+ * @param array a pointer to a valid sptIndex array
  * @param size of the array
  * @param fp a file pointer
  *
  */
-int ptiDumpIndexArray(ptiIndex const *array, ptiNnzIndex const n, FILE *fp) {
+int sptDumpIndexArray(sptIndex const *array, sptNnzIndex const n, FILE *fp) {
     int iores;
-    iores = fprintf(fp, "ptiIndex array length: %"HIPARTI_PRI_NNZ_INDEX "\n", n);
-    pti_CheckOSError(iores < 0, "IdxArray Dump");
-    for(ptiNnzIndex i=0; i < n; ++i) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_INDEX "\t", array[i]);
-        pti_CheckOSError(iores < 0, "IdxArray Dump");
+    iores = fprintf(fp, "sptIndex array length: %"PARTI_PRI_NNZ_INDEX "\n", n);
+    spt_CheckOSError(iores < 0, "IdxArray Dump");
+    for(sptNnzIndex i=0; i < n; ++i) {
+        iores = fprintf(fp, "%"PARTI_PRI_INDEX "\t", array[i]);
+        spt_CheckOSError(iores < 0, "IdxArray Dump");
     }
     iores = fprintf(fp, "\n");
 
@@ -154,20 +155,20 @@ int ptiDumpIndexArray(ptiIndex const *array, ptiNnzIndex const n, FILE *fp) {
 
 
 /**
- * Dump a dense ptiNnzIndex array to file
+ * Dump a dense sptNnzIndex array to file
  *
- * @param array a pointer to a valid ptiNnzIndex array
+ * @param array a pointer to a valid sptNnzIndex array
  * @param size of the array
  * @param fp a file pointer
  *
  */
-int ptiDumpNnzIndexArray(ptiNnzIndex const *array, ptiNnzIndex const n, FILE *fp) {
+int sptDumpNnzIndexArray(sptNnzIndex const *array, sptNnzIndex const n, FILE *fp) {
     int iores;
-    iores = fprintf(fp, "ptiNnzIndex array length: %"HIPARTI_PRI_NNZ_INDEX "\n", n);
-    pti_CheckOSError(iores < 0, "NnzIdxArray Dump");
-    for(ptiNnzIndex i=0; i < n; ++i) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_NNZ_INDEX "\t", array[i]);
-        pti_CheckOSError(iores < 0, "NnzIdxArray Dump");
+    iores = fprintf(fp, "sptNnzIndex array length: %"PARTI_PRI_NNZ_INDEX "\n", n);
+    spt_CheckOSError(iores < 0, "NnzIdxArray Dump");
+    for(sptNnzIndex i=0; i < n; ++i) {
+        iores = fprintf(fp, "%"PARTI_PRI_NNZ_INDEX "\t", array[i]);
+        spt_CheckOSError(iores < 0, "NnzIdxArray Dump");
     }
     iores = fprintf(fp, "\n");
 

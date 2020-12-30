@@ -16,34 +16,34 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <math.h>
- 
-#ifdef HIPARTI_USE_MAGMA
+#include "../error/error.h"
+#ifdef PARTI_USE_MAGMA
   #include "magma_lapack.h"
 #else
   #include "clapack.h"
 #endif
 
-int ptiMatrixSolveNormals(
-  ptiIndex const mode,
-  ptiIndex const nmodes,
-  ptiMatrix ** aTa,
-  ptiMatrix * rhs)
+int sptMatrixSolveNormals(
+  sptIndex const mode,
+  sptIndex const nmodes,
+  sptMatrix ** aTa,
+  sptMatrix * rhs)
 {
   int rank = (int)(aTa[0]->ncols);
   int stride = (int)(aTa[0]->stride);
 
-  ptiMatrixDotMulSeqTriangle(mode, nmodes, aTa);
+  sptMatrixDotMulSeqTriangle(mode, nmodes, aTa);
 
   int info;
   char uplo = 'L';
   int nrhs = (int) rhs->nrows;
-  ptiValue * const neqs = aTa[nmodes]->values;
+  sptValue * const neqs = aTa[nmodes]->values;
 
   /* Cholesky factorization */
   bool is_spd = true;
@@ -67,7 +67,7 @@ int ptiMatrixSolveNormals(
     int * ipiv = (int*)malloc(rank * sizeof(int));  
 
     /* restore gram matrix */
-    ptiMatrixDotMulSeqTriangle(mode, nmodes, aTa);
+    sptMatrixDotMulSeqTriangle(mode, nmodes, aTa);
 
     sgesv_(&rank, &nrhs, neqs, &stride, ipiv, rhs->values, &stride, &info);
     // lapackf77_sgesv(&rank, &nrhs, neqs, &stride, ipiv, rhs->values, &stride, &info);

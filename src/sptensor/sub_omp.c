@@ -16,85 +16,85 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
 /* TODO: bug. */
-int ptiSparseTensorSubOMP(ptiSparseTensor *Y, ptiSparseTensor *X, int const nthreads) {
+int sptSparseTensorSubOMP(sptSparseTensor *Y, sptSparseTensor *X, int const nthreads) {
     /* Ensure X and Y are in same shape */
     if(Y->nmodes != X->nmodes) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "OMP SpTns Sub", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "OMP SpTns Sub", "shape mismatch");
     }
-    for(ptiIndex i = 0; i < X->nmodes; ++i) {
+    for(sptIndex i = 0; i < X->nmodes; ++i) {
         if(Y->ndims[i] != X->ndims[i]) {
-            pti_CheckError(PTIERR_SHAPE_MISMATCH, "OMP SpTns Sub", "shape mismatch");
+            spt_CheckError(SPTERR_SHAPE_MISMATCH, "OMP SpTns Sub", "shape mismatch");
         }
     }
 
     /* Determine partationing strategy. */
-    ptiNnzIndex * dist_nnzs_X = (ptiNnzIndex*)malloc(nthreads*sizeof(ptiNnzIndex));
-    ptiNnzIndex * dist_nnzs_Y = (ptiNnzIndex*)malloc(nthreads*sizeof(ptiNnzIndex));
-    ptiIndex * dist_nrows_Y = (ptiIndex*)malloc(nthreads*sizeof(ptiIndex));
+    sptNnzIndex * dist_nnzs_X = (sptNnzIndex*)malloc(nthreads*sizeof(sptNnzIndex));
+    sptNnzIndex * dist_nnzs_Y = (sptNnzIndex*)malloc(nthreads*sizeof(sptNnzIndex));
+    sptIndex * dist_nrows_Y = (sptIndex*)malloc(nthreads*sizeof(sptIndex));
 
-    pti_DistSparseTensor(Y, nthreads, dist_nnzs_Y, dist_nrows_Y);
-    pti_DistSparseTensorFixed(X, nthreads, dist_nnzs_X, dist_nnzs_Y);
+    spt_DistSparseTensor(Y, nthreads, dist_nnzs_Y, dist_nrows_Y);
+    spt_DistSparseTensorFixed(X, nthreads, dist_nnzs_X, dist_nnzs_Y);
     free(dist_nrows_Y);
 
     printf("dist_nnzs_Y:\n");
     for(int i=0; i<nthreads; ++i) {
-        printf("%" HIPARTI_PRI_NNZ_INDEX " ", dist_nnzs_Y[i]);
+        printf("%" PARTI_PRI_NNZ_INDEX " ", dist_nnzs_Y[i]);
     }
     printf("\n");
     printf("dist_nnzs_X:\n");
     for(int i=0; i<nthreads; ++i) {
-        printf("%" HIPARTI_PRI_NNZ_INDEX " ", dist_nnzs_X[i]);
+        printf("%" PARTI_PRI_NNZ_INDEX " ", dist_nnzs_X[i]);
     }
     printf("\n");
     fflush(stdout);
 
 
     /* Build a private arrays to append values. */
-    ptiNnzIndex nnz_gap = llabs((long long) Y->nnz - (long long) X->nnz);
-    ptiNnzIndex increase_size = 0;
+    sptNnzIndex nnz_gap = llabs((long long) Y->nnz - (long long) X->nnz);
+    sptNnzIndex increase_size = 0;
     if(nnz_gap == 0) increase_size = 10;
     else increase_size = nnz_gap;
 
-    ptiIndexVector **local_inds = (ptiIndexVector**)malloc(nthreads* sizeof *local_inds);
+    sptIndexVector **local_inds = (sptIndexVector**)malloc(nthreads* sizeof *local_inds);
     for(int k=0; k<nthreads; ++k) {
-        local_inds[k] = (ptiIndexVector*)malloc(Y->nmodes* sizeof *(local_inds[k]));
-        for(ptiIndex m=0; m<Y->nmodes; ++m) {
-            ptiNewIndexVector(&(local_inds[k][m]), 0, increase_size);
+        local_inds[k] = (sptIndexVector*)malloc(Y->nmodes* sizeof *(local_inds[k]));
+        for(sptIndex m=0; m<Y->nmodes; ++m) {
+            sptNewIndexVector(&(local_inds[k][m]), 0, increase_size);
         }
     }
 
-    ptiValueVector *local_vals = (ptiValueVector*)malloc(nthreads* sizeof *local_vals);
+    sptValueVector *local_vals = (sptValueVector*)malloc(nthreads* sizeof *local_vals);
     for(int k=0; k<nthreads; ++k) {
-        ptiNewValueVector(&(local_vals[k]), 0, increase_size);
+        sptNewValueVector(&(local_vals[k]), 0, increase_size);
     }
 
 
     /* Add elements one by one, assume indices are ordered */
-    ptiNnzIndex Ynnz = 0;
+    sptNnzIndex Ynnz = 0;
     omp_set_dynamic(0);
     omp_set_num_threads(nthreads);
     #pragma omp parallel reduction(+:Ynnz)
     {
         int tid = omp_get_thread_num();
-        ptiNnzIndex i=0, j=0;
+        sptNnzIndex i=0, j=0;
         Ynnz = dist_nnzs_Y[tid];
         while(i < dist_nnzs_X[tid] && j < dist_nnzs_Y[tid]) {
-            int compare = pti_SparseTensorCompareIndices(X, i, Y, j);
+            int compare = spt_SparseTensorCompareIndices(X, i, Y, j);
             if(compare > 0) {
                 ++j;
             } else if(compare < 0) {
-                ptiIndex mode;
+                sptIndex mode;
                 int result;
                 for(mode = 0; mode < X->nmodes; ++mode) {
-                    result = ptiAppendIndexVector(&(local_inds[tid][mode]), X->inds[mode].data[i]);
-                    pti_CheckOmpError(result, "OMP SpTns Sub", NULL);
+                    result = sptAppendIndexVector(&(local_inds[tid][mode]), X->inds[mode].data[i]);
+                    spt_CheckOmpError(result, "OMP SpTns Sub", NULL);
                 }
-                result = ptiAppendValueVector(&(local_vals[tid]), -X->values.data[i]);
-                pti_CheckOmpError(result, "OMP SpTns Sub", NULL);
+                result = sptAppendValueVector(&(local_vals[tid]), -X->values.data[i]);
+                spt_CheckOmpError(result, "OMP SpTns Sub", NULL);
                 ++Ynnz;
                 ++i;
             } else {
@@ -105,14 +105,14 @@ int ptiSparseTensorSubOMP(ptiSparseTensor *Y, ptiSparseTensor *X, int const nthr
         }
         /* Append remaining elements of X to Y */
         while(i < dist_nnzs_X[tid]) {
-            ptiIndex mode;
+            sptIndex mode;
             int result;
             for(mode = 0; mode < X->nmodes; ++mode) {
-                result = ptiAppendIndexVector(&(local_inds[tid][mode]), X->inds[mode].data[i]);
-                pti_CheckOmpError(result, "OMP SpTns Sub", NULL);
+                result = sptAppendIndexVector(&(local_inds[tid][mode]), X->inds[mode].data[i]);
+                spt_CheckOmpError(result, "OMP SpTns Sub", NULL);
             }
-            result = ptiAppendValueVector(&(local_vals[tid]), -X->values.data[i]);
-            pti_CheckOmpError(result, "OMP SpTns Sub", NULL);
+            result = sptAppendValueVector(&(local_vals[tid]), -X->values.data[i]);
+            spt_CheckOmpError(result, "OMP SpTns Sub", NULL);
             ++Ynnz;
             ++i;
         }
@@ -121,18 +121,18 @@ int ptiSparseTensorSubOMP(ptiSparseTensor *Y, ptiSparseTensor *X, int const nthr
 
     /* Append all the local arrays to Y. */
     for(int k=0; k<nthreads; ++k) {
-        for(ptiIndex m=0; m<Y->nmodes; ++m) {
-            ptiAppendIndexVectorWithVector(&(Y->inds[m]), &(local_inds[k][m]));
+        for(sptIndex m=0; m<Y->nmodes; ++m) {
+            sptAppendIndexVectorWithVector(&(Y->inds[m]), &(local_inds[k][m]));
         }
-        ptiAppendValueVectorWithVector(&(Y->values), &(local_vals[k]));
+        sptAppendValueVectorWithVector(&(Y->values), &(local_vals[k]));
     }
 
     for(int k=0; k<nthreads; ++k) {
-        for(ptiIndex m=0; m<Y->nmodes; ++m) {
-            ptiFreeIndexVector(&(local_inds[k][m]));
+        for(sptIndex m=0; m<Y->nmodes; ++m) {
+            sptFreeIndexVector(&(local_inds[k][m]));
         }
         free(local_inds[k]);
-        ptiFreeValueVector(&(local_vals[k]));
+        sptFreeValueVector(&(local_vals[k]));
     }
     free(local_inds);
     free(local_vals);
@@ -142,9 +142,9 @@ int ptiSparseTensorSubOMP(ptiSparseTensor *Y, ptiSparseTensor *X, int const nthr
     /* Check whether elements become zero after adding.
        If so, fill the gap with the [nnz-1]'th element.
     */
-    pti_SparseTensorCollectZeros(Y);
+    spt_SparseTensorCollectZeros(Y);
     /* Sort the indices */
-    ptiSparseTensorSortIndex(Y, 1, nthreads);
+    sptSparseTensorSortIndex(Y, 1, nthreads);
 
     return 0;
 }

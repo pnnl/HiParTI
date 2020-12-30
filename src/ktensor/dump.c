@@ -16,74 +16,75 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../error/error.h"
 
-int ptiDumpKruskalTensor(ptiKruskalTensor *ktsr, FILE *fp)
+int sptDumpKruskalTensor(sptKruskalTensor *ktsr, FILE *fp)
 {
     int iores;
-    ptiIndex mode;
+    sptIndex mode;
 
-    iores = fprintf(fp, "nmodes: %"HIPARTI_PRI_INDEX ", rank: %"HIPARTI_PRI_INDEX "\n", ktsr->nmodes, ktsr->rank);
-    pti_CheckOSError(iores < 0, "KruskalTns Dump");
+    iores = fprintf(fp, "nmodes: %"PARTI_PRI_INDEX ", rank: %"PARTI_PRI_INDEX "\n", ktsr->nmodes, ktsr->rank);
+    spt_CheckOSError(iores < 0, "KruskalTns Dump");
     for(mode = 0; mode < ktsr->nmodes; ++mode) {
         if(mode != 0) {
             iores = fputs(" ", fp);
-            pti_CheckOSError(iores < 0, "KruskalTns Dump");
+            spt_CheckOSError(iores < 0, "KruskalTns Dump");
         }
-        iores = fprintf(fp, "%"HIPARTI_PRI_INDEX, ktsr->ndims[mode]);
-        pti_CheckOSError(iores < 0, "KruskalTns Dump");
+        iores = fprintf(fp, "%"PARTI_PRI_INDEX, ktsr->ndims[mode]);
+        spt_CheckOSError(iores < 0, "KruskalTns Dump");
     }
     fputs("\n", fp);
 
     iores = fprintf(fp, "fit: %lf\n", ktsr->fit);
     fprintf(fp, "lambda:\n");    
-    for(ptiIndex r = 0; r < ktsr->rank; ++r) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_VALUE " ", ktsr->lambda[r]);
-        // pti_CheckOSError(iores != 0, "KruskalTns Dump");
+    for(sptIndex r = 0; r < ktsr->rank; ++r) {
+        iores = fprintf(fp, "%"PARTI_PRI_VALUE " ", ktsr->lambda[r]);
+        // spt_CheckOSError(iores != 0, "KruskalTns Dump");
     }
     fprintf(fp, "\n");
 
     fprintf(fp, "Factor matrices:\n");
     for(mode=0; mode < ktsr->nmodes; ++mode) {
-        iores = ptiDumpMatrix(ktsr->factors[mode], fp);
-        pti_CheckOSError(iores != 0, "KruskalTns Dump");
+        iores = sptDumpMatrix(ktsr->factors[mode], fp);
+        spt_CheckOSError(iores != 0, "KruskalTns Dump");
     }
     return 0;
 }
 
 
-int ptiDumpRankKruskalTensor(ptiRankKruskalTensor *ktsr, FILE *fp)
+int sptDumpRankKruskalTensor(sptRankKruskalTensor *ktsr, FILE *fp)
 {
     int iores;
-    ptiIndex mode;
+    sptIndex mode;
 
-    iores = fprintf(fp, "nmodes: %"HIPARTI_PRI_INDEX ", rank: %"HIPARTI_PRI_ELEMENT_INDEX "\n", ktsr->nmodes, ktsr->rank);
-    pti_CheckOSError(iores < 0, "RankKruskalTns Dump");
+    iores = fprintf(fp, "nmodes: %"PARTI_PRI_INDEX ", rank: %"PARTI_PRI_ELEMENT_INDEX "\n", ktsr->nmodes, ktsr->rank);
+    spt_CheckOSError(iores < 0, "RankKruskalTns Dump");
 
     for(mode = 0; mode < ktsr->nmodes; ++mode) {
         if(mode != 0) {
             iores = fputs(" ", fp);
-            pti_CheckOSError(iores < 0, "RankKruskalTns Dump");
+            spt_CheckOSError(iores < 0, "RankKruskalTns Dump");
         }
-        iores = fprintf(fp, "%"HIPARTI_PRI_INDEX, ktsr->ndims[mode]);
-        pti_CheckOSError(iores < 0, "RankKruskalTns Dump");
+        iores = fprintf(fp, "%"PARTI_PRI_INDEX, ktsr->ndims[mode]);
+        spt_CheckOSError(iores < 0, "RankKruskalTns Dump");
     }
     fputs("\n", fp);
 
     iores = fprintf(fp, "fit: %lf\n", ktsr->fit);
     fprintf(fp, "lambda:\n");    
-    for(ptiElementIndex r = 0; r < ktsr->rank; ++r) {
-        iores = fprintf(fp, "%"HIPARTI_PRI_VALUE " ", ktsr->lambda[r]);
-        // pti_CheckOSError(iores != 0, "RankKruskalTns Dump");
+    for(sptElementIndex r = 0; r < ktsr->rank; ++r) {
+        iores = fprintf(fp, "%"PARTI_PRI_VALUE " ", ktsr->lambda[r]);
+        // spt_CheckOSError(iores != 0, "RankKruskalTns Dump");
     }
     fprintf(fp, "\n");
 
     fprintf(fp, "Factor matrices:\n");
     for(mode=0; mode < ktsr->nmodes; ++mode) {
-        iores = ptiDumpRankMatrix(ktsr->factors[mode], fp);
-        pti_CheckOSError(iores != 0, "RankKruskalTns Dump");
+        iores = sptDumpRankMatrix(ktsr->factors[mode], fp);
+        spt_CheckOSError(iores != 0, "RankKruskalTns Dump");
     }
     return 0;
 }

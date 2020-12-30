@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
 /**
@@ -24,12 +24,12 @@
  *
  * This function finds zero values from the sparse tensor,
  * move them to the end of the array, then truncate the array.
- * Orders are not kept, call ptiSparseTensorSortIndex after this.
+ * Orders are not kept, call sptSparseTensorSortIndex after this.
  */
-void pti_SparseTensorCollectZeros(ptiSparseTensor *tsr) {
-    ptiNnzIndex i =  0;
-    ptiNnzIndex nnz = tsr->nnz;
-    ptiIndex mode;
+void spt_SparseTensorCollectZeros(sptSparseTensor *tsr) {
+    sptNnzIndex i =  0;
+    sptNnzIndex nnz = tsr->nnz;
+    sptIndex mode;
     while(i < nnz) {
         if(tsr->values.data[i] == 0) {
             for(mode = 0; mode < tsr->nmodes; ++mode) {

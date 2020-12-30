@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "ssptensor.h"
 #include <stdlib.h>
 
@@ -27,16 +27,16 @@
  * @param[in]  U    the dense matrix input U
  * @param      mode the mode on which the multiplication is done on
  */
-int ptiSemiSparseTensorMulMatrix(
-    ptiSemiSparseTensor *Y,
-    const ptiSemiSparseTensor *X,
-    const ptiMatrix *U,
-    ptiIndex mode
+int sptSemiSparseTensorMulMatrix(
+    sptSemiSparseTensor *Y,
+    const sptSemiSparseTensor *X,
+    const sptMatrix *U,
+    sptIndex mode
 ) {
     int result;
-    ptiIndex *ind_buf;
-    ptiIndex m;
-    ptiNnzIndex i;
+    sptIndex *ind_buf;
+    sptIndex m;
+    sptNnzIndex i;
     if(mode >= X->nmodes) {
         return -1;
     }
@@ -53,28 +53,28 @@ int ptiSemiSparseTensorMulMatrix(
     }
     ind_buf[mode] = U->ncols;
     // jli: use pre-processing to allocate Y size outside this function.
-    result = ptiNewSemiSparseTensor(Y, X->nmodes, mode, ind_buf);
+    result = sptNewSemiSparseTensor(Y, X->nmodes, mode, ind_buf);
     free(ind_buf);
     if(result) {
         return result;
     }
     for(m = 0; m < Y->nmodes; ++m) {
         if(m != mode) {
-            ptiFreeIndexVector(&Y->inds[m]);
-            result = ptiCopyIndexVector(&Y->inds[m], &X->inds[m], 1);
+            sptFreeIndexVector(&Y->inds[m]);
+            result = sptCopyIndexVector(&Y->inds[m], &X->inds[m], 1);
             if(result != 0) {
                 return result;
             }
         }
     }
-    result = ptiResizeMatrix(&Y->values, X->nnz);
+    result = sptResizeMatrix(&Y->values, X->nnz);
     if(result != 0) {
         return result;
     }
     Y->nnz = X->nnz;
-    memset(Y->values.values, 0, Y->nnz * Y->stride * sizeof (ptiValue));
+    memset(Y->values.values, 0, Y->nnz * Y->stride * sizeof (sptValue));
     for(i = 0; i < X->nnz; ++i) {
-        ptiIndex r, k;
+        sptIndex r, k;
         for(k = 0; k < U->ncols; ++k) {
             for(r = 0; r < U->nrows; ++r) {
                 Y->values.values[i*Y->stride + k] += X->values.values[i*X->stride + r] * U->values[r*U->stride + k];

@@ -1,0 +1,1 @@
+$SPARTA_DIR/build/benchmark/ttt -X $TENSOR_DIR/vast.bin -Y $TENSOR_DIR/vast.bin -m 1 -x 0 -y 0 -t 24

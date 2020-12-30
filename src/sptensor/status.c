@@ -16,16 +16,16 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 #include <math.h>
 
 
-double ptiSparseTensorDensity(ptiSparseTensor const * const tsr)
+double sptSparseTensorDensity(sptSparseTensor const * const tsr)
 {
   double root = pow((double)tsr->nnz, 1./(double)tsr->nmodes);
   double density = 1.0;
-  for(ptiIndex m=0; m < tsr->nmodes; ++m) {
+  for(sptIndex m=0; m < tsr->nmodes; ++m) {
     density *= root / (double)tsr->ndims[m];
   }
 
@@ -34,23 +34,23 @@ double ptiSparseTensorDensity(ptiSparseTensor const * const tsr)
 
 
 
-void ptiSparseTensorStatus(ptiSparseTensor *tsr, FILE *fp)
+void sptSparseTensorStatus(sptSparseTensor *tsr, FILE *fp)
 {
-  fprintf(fp, "COO Sparse Tensor information (use ptiIndex, ptiValue))---------\n");
-  fprintf(fp, "DIMS=%"HIPARTI_PRI_INDEX, tsr->ndims[0]);
-  for(ptiIndex m=1; m < tsr->nmodes; ++m) {
-    fprintf(fp, "x%"HIPARTI_PRI_INDEX, tsr->ndims[m]);
+  fprintf(fp, "COO Sparse Tensor information (use sptIndex, sptValue))---------\n");
+  fprintf(fp, "DIMS=%"PARTI_PRI_INDEX, tsr->ndims[0]);
+  for(sptIndex m=1; m < tsr->nmodes; ++m) {
+    fprintf(fp, "x%"PARTI_PRI_INDEX, tsr->ndims[m]);
   }
-  fprintf(fp, " NNZ=%"HIPARTI_PRI_NNZ_INDEX, tsr->nnz);
-  fprintf(fp, " DENSITY=%e\n" , ptiSparseTensorDensity(tsr));
+  fprintf(fp, " NNZ=%"PARTI_PRI_NNZ_INDEX, tsr->nnz);
+  fprintf(fp, " DENSITY=%e\n" , sptSparseTensorDensity(tsr));
 
   fprintf(fp, "Average slice length (c): ");
-  for(ptiIndex m=0; m < tsr->nmodes - 1; ++m) {
+  for(sptIndex m=0; m < tsr->nmodes - 1; ++m) {
     fprintf(fp, "%.2lf , ", (double)tsr->nnz / tsr->ndims[m]);
   }
   fprintf(fp, "%.2lf\n", (double)tsr->nnz / tsr->ndims[tsr->nmodes-1]);
 
-  char * bytestr = ptiBytesString(tsr->nnz * (sizeof(ptiIndex) * tsr->nmodes + sizeof(ptiValue)));
+  char * bytestr = sptBytesString(tsr->nnz * (sizeof(sptIndex) * tsr->nmodes + sizeof(sptValue)));
   fprintf(fp, "COO-STORAGE=%s\n", bytestr);
   fprintf(fp, "\n");
   free(bytestr);

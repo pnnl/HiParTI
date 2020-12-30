@@ -16,42 +16,43 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include "../error/error.h"
 
 
 /**
  * Initialize a new dense rank matrix
  *
- * @param mtx   a valid pointer to an uninitialized ptiMatrix variable
+ * @param mtx   a valid pointer to an uninitialized sptMatrix variable
  * @param nrows the number of rows
  * @param ncols the number of columns
  *
  * The memory layout of this dense matrix is a flat 2D array, with `ncols`
  * rounded up to multiples of 8
  */
-int ptiNewRankMatrix(ptiRankMatrix *mtx, ptiIndex const nrows, ptiElementIndex const ncols) {
+int sptNewRankMatrix(sptRankMatrix *mtx, sptIndex const nrows, sptElementIndex const ncols) {
     mtx->nrows = nrows;
     mtx->ncols = ncols;
     mtx->cap = nrows != 0 ? nrows : 1;
     mtx->stride = ((ncols-1)/8+1)*8;
 #ifdef _ISOC11_SOURCE
-    mtx->values = aligned_alloc(8 * sizeof (ptiValue), mtx->cap * mtx->stride * sizeof (ptiValue));
+    mtx->values = aligned_alloc(8 * sizeof (sptValue), mtx->cap * mtx->stride * sizeof (sptValue));
 #elif _POSIX_C_SOURCE >= 200112L
     {
-        int result = posix_memalign((void **) &mtx->values, 8 * sizeof (ptiValue), mtx->cap * mtx->stride * sizeof (ptiValue));
+        int result = posix_memalign((void **) &mtx->values, 8 * sizeof (sptValue), mtx->cap * mtx->stride * sizeof (sptValue));
         if(result != 0) {
             mtx->values = NULL;
         }
     }
 #else
-    mtx->values = malloc(mtx->cap * mtx->stride * sizeof (ptiValue));
+    mtx->values = malloc(mtx->cap * mtx->stride * sizeof (sptValue));
 #endif
-    pti_CheckOSError(!mtx->values, "RankMtx New");
+    spt_CheckOSError(!mtx->values, "RankMtx New");
     return 0;
 }
 
@@ -66,12 +67,12 @@ int ptiNewRankMatrix(ptiRankMatrix *mtx, ptiIndex const nrows, ptiElementIndex c
  * The matrix is filled with uniform distributed pseudorandom number in [0, 1]
  * The random number will have a precision of 31 bits out of 51 bits
  */
-int ptiRandomizeRankMatrix(ptiRankMatrix *mtx, ptiIndex const nrows, ptiElementIndex const ncols)
+int sptRandomizeRankMatrix(sptRankMatrix *mtx, sptIndex const nrows, sptElementIndex const ncols) 
 {
   srand(time(NULL));
-  for(ptiIndex i=0; i<nrows; ++i)
-    for(ptiElementIndex j=0; j<ncols; ++j) {
-      mtx->values[i * mtx->stride + j] = i + j + 1; //ptiRandomValue();
+  for(sptIndex i=0; i<nrows; ++i)
+    for(sptElementIndex j=0; j<ncols; ++j) {
+      mtx->values[i * mtx->stride + j] = i + j + 1; //sptRandomValue();
     }
   return 0;
 }
@@ -83,9 +84,9 @@ int ptiRandomizeRankMatrix(ptiRankMatrix *mtx, ptiIndex const nrows, ptiElementI
  * @param val   a given value constant
  *
  */
-int ptiConstantRankMatrix(ptiRankMatrix *mtx, ptiValue const val) {
-  for(ptiIndex i=0; i<mtx->nrows; ++i)
-    for(ptiElementIndex j=0; j<mtx->ncols; ++j)
+int sptConstantRankMatrix(sptRankMatrix *mtx, sptValue const val) {
+  for(sptIndex i=0; i<mtx->nrows; ++i)
+    for(sptElementIndex j=0; j<mtx->ncols; ++j)
       mtx->values[i * mtx->stride + j] = val;
   return 0;
 }
@@ -98,14 +99,14 @@ int ptiConstantRankMatrix(ptiRankMatrix *mtx, ptiValue const val) {
  * @param[out] map_inds is the renumbering mapping 
  *
  */
-void ptiRankMatrixInverseShuffleIndices(ptiRankMatrix *mtx, ptiIndex * mode_map_inds) {
+void sptRankMatrixInverseShuffleIndices(sptRankMatrix *mtx, sptIndex * mode_map_inds) {
     /* Renumber matrix rows */
-    ptiIndex new_i;
-    ptiValue * tmp_values = malloc(mtx->cap * mtx->stride * sizeof (ptiValue));
+    sptIndex new_i;
+    sptValue * tmp_values = malloc(mtx->cap * mtx->stride * sizeof (sptValue));
 
-    for(ptiIndex i=0; i<mtx->nrows; ++i) {
+    for(sptIndex i=0; i<mtx->nrows; ++i) {
         new_i = mode_map_inds[i];
-        for(ptiElementIndex j=0; j<mtx->ncols; ++j) {
+        for(sptElementIndex j=0; j<mtx->ncols; ++j) {
             tmp_values[i * mtx->stride + j] = mtx->values[new_i * mtx->stride + j];
         }
     }
@@ -120,10 +121,10 @@ void ptiRankMatrixInverseShuffleIndices(ptiRankMatrix *mtx, ptiIndex * mode_map_
  *
  * @param mtx a pointer to a valid matrix
  *
- * By using `ptiFreeMatrix`, a valid matrix would become uninitialized and
+ * By using `sptFreeMatrix`, a valid matrix would become uninitialized and
  * should not be used anymore prior to another initialization
  */
-void ptiFreeRankMatrix(ptiRankMatrix *mtx) {
+void sptFreeRankMatrix(sptRankMatrix *mtx) {
     free(mtx->values);
     mtx->nrows = 0;
     mtx->ncols = 0;
@@ -133,46 +134,46 @@ void ptiFreeRankMatrix(ptiRankMatrix *mtx) {
 
 
 /* mats (aTa) only stores upper triangle elements. */
-int ptiRankMatrixDotMulSeqTriangle(ptiIndex const mode, ptiIndex const nmodes, ptiRankMatrix ** mats)
+int sptRankMatrixDotMulSeqTriangle(sptIndex const mode, sptIndex const nmodes, sptRankMatrix ** mats)
 {
-    ptiIndex const nrows = mats[0]->nrows;
-    ptiElementIndex const ncols = mats[0]->ncols;
-    ptiElementIndex const stride = mats[0]->stride;
-    for(ptiIndex m=1; m<nmodes+1; ++m) {
+    sptIndex const nrows = mats[0]->nrows;
+    sptElementIndex const ncols = mats[0]->ncols;
+    sptElementIndex const stride = mats[0]->stride;
+    for(sptIndex m=1; m<nmodes+1; ++m) {
         assert(mats[m]->ncols == ncols);
         assert(mats[m]->nrows == nrows);
     }
 
-    ptiValue * ovals = mats[nmodes]->values;
-#ifdef HIPARTI_USE_OPENMP
+    sptValue * ovals = mats[nmodes]->values;
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for schedule(static)
 #endif
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiElementIndex j=0; j < ncols; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptElementIndex j=0; j < ncols; ++j) {
             ovals[j * stride + i] = 1.0;
         }
     }
 
 
-    for(ptiIndex m=1; m < nmodes; ++m) {
-        ptiIndex const pm = (mode + m) % nmodes;
-        ptiValue const * vals = mats[pm]->values;
-#ifdef HIPARTI_USE_OPENMP
+    for(sptIndex m=1; m < nmodes; ++m) {
+        sptIndex const pm = (mode + m) % nmodes;
+        sptValue const * vals = mats[pm]->values;
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for schedule(static)
 #endif
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiElementIndex j=i; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptElementIndex j=i; j < ncols; ++j) {
                 ovals[i * stride + j] *= vals[i * stride + j];
             }
         }
     }
 
     /* Copy upper triangle to lower part */
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for schedule(static)
 #endif
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiElementIndex j=0; j < i; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptElementIndex j=0; j < i; ++j) {
             ovals[i * stride + j] = ovals[j * stride + i];
         }
     }
@@ -182,52 +183,52 @@ int ptiRankMatrixDotMulSeqTriangle(ptiIndex const mode, ptiIndex const nmodes, p
 
 
 // Row-major
-int ptiRankMatrix2Norm(ptiRankMatrix * const A, ptiValue * const lambda)
+int sptRankMatrix2Norm(sptRankMatrix * const A, sptValue * const lambda)
 {
-    ptiIndex const nrows = A->nrows;
-    ptiElementIndex const ncols = A->ncols;
-    ptiElementIndex const stride = A->stride;
-    ptiValue * const vals = A->values;
-    ptiValue * buffer_lambda;
+    sptIndex const nrows = A->nrows;
+    sptElementIndex const ncols = A->ncols;
+    sptElementIndex const stride = A->stride;
+    sptValue * const vals = A->values;
+    sptValue * buffer_lambda;
     int nthreads = 1;
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for schedule(static)
 #endif
-    for(ptiElementIndex j=0; j < ncols; ++j) {
+    for(sptElementIndex j=0; j < ncols; ++j) {
         lambda[j] = 0.0;
     }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel
     {
         nthreads = omp_get_num_threads();
     }
-    buffer_lambda = (ptiValue *)malloc(nthreads * ncols * sizeof(ptiValue));
+    buffer_lambda = (sptValue *)malloc(nthreads * ncols * sizeof(sptValue));
 #endif
 
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel
     {
         #pragma omp for schedule(static)
-        for(ptiNnzIndex j=0; j < (ptiNnzIndex)nthreads * ncols; ++j)
+        for(sptNnzIndex j=0; j < (sptNnzIndex)nthreads * ncols; ++j)
                 buffer_lambda[j] = 0.0;
 
         int const tid = omp_get_thread_num();
         int const nthreads = omp_get_num_threads();
-        ptiValue * loc_lambda = buffer_lambda + tid * ncols;
+        sptValue * loc_lambda = buffer_lambda + tid * ncols;
 
         #pragma omp for
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiElementIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptElementIndex j=0; j < ncols; ++j) {
                 loc_lambda[j] += vals[i*stride + j] * vals[i*stride + j];
             }
         }
 
         #pragma omp for schedule(static)
-        for(ptiElementIndex j=0; j < ncols; ++j) {
-            for(ptiIndex i=0; i < (ptiIndex)nthreads; ++i) {
+        for(sptElementIndex j=0; j < ncols; ++j) {
+            for(sptIndex i=0; i < (sptIndex)nthreads; ++i) {
                 lambda[j] += buffer_lambda[i*ncols + j];
             }
         }
@@ -235,32 +236,32 @@ int ptiRankMatrix2Norm(ptiRankMatrix * const A, ptiValue * const lambda)
 
 #else
 
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiElementIndex j=0; j < ncols; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptElementIndex j=0; j < ncols; ++j) {
             lambda[j] += vals[i*stride + j] * vals[i*stride + j];
         }
     }
 
 #endif
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for schedule(static)
 #endif
-        for(ptiElementIndex j=0; j < ncols; ++j) {
+        for(sptElementIndex j=0; j < ncols; ++j) {
             lambda[j] = sqrt(lambda[j]);
         }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for
 #endif
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiElementIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptElementIndex j=0; j < ncols; ++j) {
                 vals[i*stride + j] /= lambda[j];
             }
         }
 
     
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     free(buffer_lambda);
 #endif
 
@@ -269,53 +270,53 @@ int ptiRankMatrix2Norm(ptiRankMatrix * const A, ptiValue * const lambda)
 
 
 // Row-major
-int ptiRankMatrixMaxNorm(ptiRankMatrix * const A, ptiValue * const lambda)
+int sptRankMatrixMaxNorm(sptRankMatrix * const A, sptValue * const lambda)
 {
-    ptiIndex const nrows = A->nrows;
-    ptiElementIndex const ncols = A->ncols;
-    ptiElementIndex const stride = A->stride;
-    ptiValue * const vals = A->values;
-    ptiValue * buffer_lambda;
+    sptIndex const nrows = A->nrows;
+    sptElementIndex const ncols = A->ncols;
+    sptElementIndex const stride = A->stride;
+    sptValue * const vals = A->values;
+    sptValue * buffer_lambda;
     int nthreads = 1;
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for schedule(static)
 #endif
-    for(ptiElementIndex j=0; j < ncols; ++j) {
+    for(sptElementIndex j=0; j < ncols; ++j) {
         lambda[j] = 0.0;
     }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel
     {
         nthreads = omp_get_num_threads();
     }
-    buffer_lambda = (ptiValue *)malloc(nthreads * ncols * sizeof(ptiValue));
+    buffer_lambda = (sptValue *)malloc(nthreads * ncols * sizeof(sptValue));
 #endif
 
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel
     {
         #pragma omp for schedule(static)
-        for(ptiNnzIndex j=0; j < (ptiNnzIndex)nthreads * ncols; ++j)
+        for(sptNnzIndex j=0; j < (sptNnzIndex)nthreads * ncols; ++j)
             buffer_lambda[j] = 0.0;
 
         int const tid = omp_get_thread_num();
         int const nthreads = omp_get_num_threads();
-        ptiValue * loc_lambda = buffer_lambda + tid * ncols;
+        sptValue * loc_lambda = buffer_lambda + tid * ncols;
 
         #pragma omp for
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiElementIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptElementIndex j=0; j < ncols; ++j) {
                 if(vals[i*stride + j] > loc_lambda[j])
                     loc_lambda[j] = vals[i*stride + j];
             }
         }
 
         #pragma omp for schedule(static)
-        for(ptiElementIndex j=0; j < ncols; ++j) {
-            for(ptiIndex i=0; i < (ptiIndex)nthreads; ++i) {
+        for(sptElementIndex j=0; j < ncols; ++j) {
+            for(sptIndex i=0; i < (sptIndex)nthreads; ++i) {
                 if(buffer_lambda[i*ncols + j] > lambda[j])
                     lambda[j] = buffer_lambda[i*ncols + j];
             }
@@ -323,32 +324,32 @@ int ptiRankMatrixMaxNorm(ptiRankMatrix * const A, ptiValue * const lambda)
     }   /* end parallel pragma */
 
 #else
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiElementIndex j=0; j < ncols; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptElementIndex j=0; j < ncols; ++j) {
             if(vals[i*stride + j] > lambda[j])
                 lambda[j] = vals[i*stride + j];
         }
     }
 #endif
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for schedule(static)
 #endif
-        for(ptiElementIndex j=0; j < ncols; ++j) {
+        for(sptElementIndex j=0; j < ncols; ++j) {
             if(lambda[j] < 1)
                 lambda[j] = 1;
         }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for
 #endif
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiElementIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptElementIndex j=0; j < ncols; ++j) {
                 vals[i*stride + j] /= lambda[j];
             }
         }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     free(buffer_lambda);
 #endif
 
@@ -357,16 +358,16 @@ int ptiRankMatrixMaxNorm(ptiRankMatrix * const A, ptiValue * const lambda)
 
 
 void GetRankFinalLambda(
-  ptiElementIndex const rank,
-  ptiIndex const nmodes,
-  ptiRankMatrix ** mats,
-  ptiValue * const lambda)
+  sptElementIndex const rank,
+  sptIndex const nmodes,
+  sptRankMatrix ** mats,
+  sptValue * const lambda)
 {
-  ptiValue * tmp_lambda =  (ptiValue *) malloc(rank * sizeof(*tmp_lambda));
+  sptValue * tmp_lambda =  (sptValue *) malloc(rank * sizeof(*tmp_lambda));
 
-  for(ptiIndex m=0; m < nmodes; ++m) {
-    ptiRankMatrix2Norm(mats[m], tmp_lambda);
-    for(ptiElementIndex r=0; r < rank; ++r) {
+  for(sptIndex m=0; m < nmodes; ++m) {   
+    sptRankMatrix2Norm(mats[m], tmp_lambda);
+    for(sptElementIndex r=0; r < rank; ++r) {
       lambda[r] *= tmp_lambda[r];
     }
   }

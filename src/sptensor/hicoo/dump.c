@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <stdio.h>
 #include "hicoo.h"
 
@@ -27,48 +27,48 @@
  * @param start_index the index of the first element in array. Set to 1 for MATLAB compability, else set to 0
  * @param fp          the file to write into
  */
-int ptiDumpSparseTensorHiCOO(ptiSparseTensorHiCOO * const hitsr, FILE *fp)
+int sptDumpSparseTensorHiCOO(sptSparseTensorHiCOO * const hitsr, FILE *fp) 
 {
     int iores;
-    ptiIndex mode;
-    ptiIndex sk = (ptiIndex)pow(2, hitsr->sk_bits);
+    sptIndex mode;
+    sptIndex sk = (sptIndex)pow(2, hitsr->sk_bits);
 
     iores = fprintf(fp, "%u\n", hitsr->nmodes);
-    pti_CheckOSError(iores < 0, "SpTns Dump");
+    spt_CheckOSError(iores < 0, "SpTns Dump");
     for(mode = 0; mode < hitsr->nmodes; ++mode) {
         if(mode != 0) {
             iores = fputs(" ", fp);
-            pti_CheckOSError(iores < 0, "SpTns Dump");
+            spt_CheckOSError(iores < 0, "SpTns Dump");
         }
         iores = fprintf(fp, "%u", hitsr->ndims[mode]);
-        pti_CheckOSError(iores < 0, "SpTns Dump");
+        spt_CheckOSError(iores < 0, "SpTns Dump");
     }
     fputs("\n", fp);
     fprintf(fp, "nkiters:\n");
-    ptiDumpIndexArray(hitsr->nkiters, hitsr->nmodes, fp);
+    sptDumpIndexArray(hitsr->nkiters, hitsr->nmodes, fp);
     fprintf(fp, "kschr:\n");
     for(mode = 0; mode < hitsr->nmodes; ++mode) {
         fprintf(fp, "mode %u\n", mode);
-        for(ptiIndex i=0; i<(hitsr->ndims[mode] + sk - 1)/sk; ++i) {
-            ptiDumpIndexVector(&hitsr->kschr[mode][i], fp);
+        for(sptIndex i=0; i<(hitsr->ndims[mode] + sk - 1)/sk; ++i) {
+            sptDumpIndexVector(&hitsr->kschr[mode][i], fp);
         }
     }
     fprintf(fp, "kptr:\n");
-    ptiDumpNnzIndexVector(&hitsr->kptr, fp);
+    sptDumpNnzIndexVector(&hitsr->kptr, fp);
     fprintf(fp, "cptr:\n");
-    ptiDumpNnzIndexVector(&hitsr->cptr, fp);
+    sptDumpNnzIndexVector(&hitsr->cptr, fp);
     fprintf(fp, "bptr:\n");
-    ptiDumpNnzIndexVector(&hitsr->bptr, fp);
+    sptDumpNnzIndexVector(&hitsr->bptr, fp);
     fprintf(fp, "binds:\n");
     for(mode = 0; mode < hitsr->nmodes; ++mode) {
-        ptiDumpBlockIndexVector(&hitsr->binds[mode], fp);
+        sptDumpBlockIndexVector(&hitsr->binds[mode], fp);
     }
     fprintf(fp, "einds:\n");
     for(mode = 0; mode < hitsr->nmodes; ++mode) {
-        ptiDumpElementIndexVector(&hitsr->einds[mode], fp);
+        sptDumpElementIndexVector(&hitsr->einds[mode], fp);
     }
     fprintf(fp, "values:\n");
-    ptiDumpValueVector(&hitsr->values, fp);
+    sptDumpValueVector(&hitsr->values, fp);
 
     return 0;
 }

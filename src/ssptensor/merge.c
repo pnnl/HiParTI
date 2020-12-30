@@ -16,45 +16,45 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "ssptensor.h"
 #include <assert.h>
 #include <string.h>
 
-static void pti_SwapValues(ptiSemiSparseTensor *tsr, ptiNnzIndex ind1, ptiNnzIndex ind2, ptiValue buffer[]);
+static void spt_SwapValues(sptSemiSparseTensor *tsr, sptNnzIndex ind1, sptNnzIndex ind2, sptValue buffer[]);
 
 /**
  * Merge fibers with identical indices of an invalid semi sparse tensor, making it valid
  * @param tsr the semi sparse tensor to operate on
  */
-int pti_SemiSparseTensorMergeValues(ptiSemiSparseTensor *tsr) {
+int spt_SemiSparseTensorMergeValues(sptSemiSparseTensor *tsr) {
     int result;
-    ptiNnzIndex i;
-    ptiNnzIndexVector collided;
-    ptiValue *buffer;
+    sptNnzIndex i;
+    sptNnzIndexVector collided;
+    sptValue *buffer;
 
     if(tsr->nnz == 0) {
         return 0;
     }
 
-    buffer = malloc(tsr->stride * sizeof (ptiValue));
-    pti_CheckOSError(!buffer, "SspTns Merge");
+    buffer = malloc(tsr->stride * sizeof (sptValue));
+    spt_CheckOSError(!buffer, "SspTns Merge");
 
-    result = ptiNewNnzIndexVector(&collided, 0, 0);
+    result = sptNewNnzIndexVector(&collided, 0, 0);
     if(result) {
         free(buffer);
-        pti_CheckError(result, "SspTns Merge", NULL);
+        spt_CheckError(result, "SspTns Merge", NULL);
     }
 
     for(i = 0; i < tsr->nnz-1; ++i) {
         // If two nnz has the same indices
-        if(pti_SemiSparseTensorCompareIndices(tsr, i, tsr, i+1) == 0) {
-            ptiIndex col;
+        if(spt_SemiSparseTensorCompareIndices(tsr, i, tsr, i+1) == 0) {
+            sptIndex col;
             for(col = 0; col < tsr->stride; ++col) {
                 // Add them together
                 tsr->values.values[(i+1)*tsr->stride + col] += tsr->values.values[i*tsr->stride + col];
             }
-            ptiAppendNnzIndexVector(&collided, i);
+            sptAppendNnzIndexVector(&collided, i);
         }
     }
 
@@ -63,7 +63,7 @@ int pti_SemiSparseTensorMergeValues(ptiSemiSparseTensor *tsr) {
     while(i) {
         --i;
         assert(tsr->nnz != 0);
-        pti_SwapValues(tsr, collided.data[i], tsr->nnz-1, buffer);
+        spt_SwapValues(tsr, collided.data[i], tsr->nnz-1, buffer);
         --tsr->nnz;
     }
 
@@ -75,27 +75,27 @@ int pti_SemiSparseTensorMergeValues(ptiSemiSparseTensor *tsr) {
     }
     tsr->values.nrows = tsr->nnz;
 
-    ptiFreeNnzIndexVector(&collided);
+    sptFreeNnzIndexVector(&collided);
     free(buffer);
 
-    result = ptiSemiSparseTensorSortIndex(tsr);
-    pti_CheckError(result, "SspTns Merge", NULL);
+    result = sptSemiSparseTensorSortIndex(tsr);
+    spt_CheckError(result, "SspTns Merge", NULL);
     return 0;
 }
 
-static void pti_SwapValues(ptiSemiSparseTensor *tsr, ptiNnzIndex ind1, ptiNnzIndex ind2, ptiValue buffer[]) {
-    ptiIndex i;
+static void spt_SwapValues(sptSemiSparseTensor *tsr, sptNnzIndex ind1, sptNnzIndex ind2, sptValue buffer[]) {
+    sptIndex i;
     for(i = 0; i < tsr->nmodes; ++i) {
         if(i != tsr->mode) {
-            ptiIndex eleind1 = tsr->inds[i].data[ind1];
-            ptiIndex eleind2 = tsr->inds[i].data[ind2];
+            sptIndex eleind1 = tsr->inds[i].data[ind1];
+            sptIndex eleind2 = tsr->inds[i].data[ind2];
             tsr->inds[i].data[ind1] = eleind2;
             tsr->inds[i].data[ind2] = eleind1;
         }
     }
     if(ind1 != ind2) {
-        memcpy(buffer, &tsr->values.values[ind1*tsr->stride], tsr->stride * sizeof (ptiValue));
-        memmove(&tsr->values.values[ind1*tsr->stride], &tsr->values.values[ind2*tsr->stride], tsr->stride * sizeof (ptiValue));
-        memcpy(&tsr->values.values[ind2*tsr->stride], buffer, tsr->stride * sizeof (ptiValue));
+        memcpy(buffer, &tsr->values.values[ind1*tsr->stride], tsr->stride * sizeof (sptValue));
+        memmove(&tsr->values.values[ind1*tsr->stride], &tsr->values.values[ind2*tsr->stride], tsr->stride * sizeof (sptValue));
+        memcpy(&tsr->values.values[ind2*tsr->stride], buffer, tsr->stride * sizeof (sptValue));
     }
 }

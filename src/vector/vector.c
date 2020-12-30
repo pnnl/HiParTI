@@ -16,21 +16,23 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <stdlib.h>
 #include <string.h>
+#include "../error/error.h"
+#include <numa.h>
 
 
 /**
  * Initialize a new value vector
  *
- * @param vec a valid pointer to an uninitialized ptiValueVector variable,
+ * @param vec a valid pointer to an uninitialized sptValueVector variable,
  * @param len number of values to create
  * @param cap total number of values to reserve
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
-int ptiNewValueVector(ptiValueVector *vec, ptiNnzIndex len, ptiNnzIndex cap) {
+int sptNewValueVector(sptValueVector *vec, sptNnzIndex len, sptNnzIndex cap) {
     if(cap < len) {
         cap = len;
     }
@@ -40,37 +42,39 @@ int ptiNewValueVector(ptiValueVector *vec, ptiNnzIndex len, ptiNnzIndex cap) {
     vec->len = len;
     vec->cap = cap;
     vec->data = malloc(cap * sizeof *vec->data);
-    pti_CheckOSError(!vec->data, "ValVec New");
+    spt_CheckOSError(!vec->data, "ValVec New");
     memset(vec->data, 0, cap * sizeof *vec->data);
     return 0;
 }
 
-/**
- * Fill an existed dense value vector with a specified constant
- *
- * @param vec   a valid pointer to an existed ptiVector variable,
- * @param val   a given value constant
- *
- * Vector is a type of one-dimentional array with dynamic length
- */
-int ptiConstantValueVector(ptiValueVector * const vec, ptiValue const val) {
-    for(ptiNnzIndex i=0; i<vec->len; ++i)
-        vec->data[i] = val;
+//Numa
+int sptNewValueVectorNuma(sptValueVector *vec, sptNnzIndex len, sptNnzIndex cap, int nume_node) {
+    if(cap < len) {
+        cap = len;
+    }
+    if(cap < 2) {
+        cap = 2;
+    }
+    vec->len = len;
+    vec->cap = cap;
+    vec->data = numa_alloc_onnode(cap * sizeof *vec->data, nume_node);
+    //spt_CheckOSError(!vec->data, "ValVec New");
+    //memset(vec->data, 0, cap * sizeof *vec->data);
     return 0;
 }
 
+
 /**
- * Fill an existed dense value vector with a randomized values
+ * Fill an existed dense value vector with a specified constant
  *
- * @param vec   a valid pointer to an existed ptiVector variable,
+ * @param vec   a valid pointer to an existed sptVector variable,
  * @param val   a given value constant
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
-int ptiRandomValueVector(ptiValueVector * const vec) {
-    // srand(time(NULL));
-    for(ptiNnzIndex i=0; i<vec->len; ++i)
-        vec->data[i] = rand() % 10 + 1;
+int sptConstantValueVector(sptValueVector * const vec, sptValue const val) {
+    for(sptNnzIndex i=0; i<vec->len; ++i)
+        vec->data[i] = val;
     return 0;
 }
 
@@ -82,12 +86,12 @@ int ptiRandomValueVector(ptiValueVector * const vec) {
  *
  * The contents of `src` will be copied to `dest`.
  */
-int ptiCopyValueVector(ptiValueVector *dest, const ptiValueVector *src, int const nt) {
-    int result = ptiNewValueVector(dest, src->len, src->len);
-    pti_CheckError(result, "ValVec Copy", NULL);
-#ifdef HIPARTI_USE_OPENMP
+int sptCopyValueVector(sptValueVector *dest, const sptValueVector *src, int const nt) {
+    int result = sptNewValueVector(dest, src->len, src->len);
+    spt_CheckError(result, "ValVec Copy", NULL);
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for num_threads(nt)
-    for (ptiNnzIndex i=0; i<src->len; ++i) {
+    for (sptNnzIndex i=0; i<src->len; ++i) {
         dest->data[i] = src->data[i];
     }
 #else
@@ -104,15 +108,33 @@ int ptiCopyValueVector(ptiValueVector *dest, const ptiValueVector *src, int cons
  *
  * The length of the value vector will be changed to contain the new value.
  */
-int ptiAppendValueVector(ptiValueVector *vec, ptiValue const value) {
+int sptAppendValueVector(sptValueVector *vec, sptValue const value) {
     if(vec->cap <= vec->len) {
 #ifndef MEMCHECK_MODE
-        ptiNnzIndex newcap = vec->cap + vec->cap/2;
+        sptNnzIndex newcap = vec->cap + vec->cap/2;
 #else
-        ptiNnzIndex newcap = vec->len+1;
+        sptNnzIndex newcap = vec->len+1;
 #endif
-        ptiValue *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "ValVec Append");
+        sptValue *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "ValVec Append");
+        vec->cap = newcap;
+        vec->data = newdata;
+    }
+    vec->data[vec->len] = value;
+    ++vec->len;
+    return 0;
+}
+
+//numa
+int sptAppendValueVectorNuma(sptValueVector *vec, sptValue const value) {
+    if(vec->cap <= vec->len) {
+#ifndef MEMCHECK_MODE
+        sptNnzIndex newcap = vec->cap + vec->cap/2;
+#else
+        sptNnzIndex newcap = vec->len+1;
+#endif
+        sptValue *newdata = numa_realloc(vec->data, vec->cap * sizeof *vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "ValVec Append");
         vec->cap = newcap;
         vec->data = newdata;
     }
@@ -129,20 +151,46 @@ int ptiAppendValueVector(ptiValueVector *vec, ptiValue const value) {
  *
  * The values from `append_vec` will be appended to `vec`.
  */
-int ptiAppendValueVectorWithVector(ptiValueVector *vec, const ptiValueVector *append_vec) {
-    ptiNnzIndex newlen = vec->len + append_vec->len;
+int sptAppendValueVectorWithVector(sptValueVector *vec, const sptValueVector *append_vec) {
+    sptNnzIndex newlen = vec->len + append_vec->len;
     if(vec->cap <= newlen) {
-        ptiNnzIndex newcap = vec->cap + append_vec->cap;
-        ptiValue *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "ValVec Append ValVec");
+        sptNnzIndex newcap = vec->cap + append_vec->cap;
+        sptValue *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "ValVec Append ValVec");
         vec->cap = newcap;
         vec->data = newdata;
     }
-    for(ptiNnzIndex i=0; i<append_vec->len; ++i) {
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
         vec->data[vec->len + i] = append_vec->data[i];
     }
     vec->len = newlen;
 
+    return 0;
+}
+
+// With numa
+int sptAppendValueVectorWithVectorNuma(sptValueVector *vec, const sptValueVector *append_vec) {
+    sptNnzIndex newlen = vec->len + append_vec->len;
+    if(vec->cap <= newlen) {
+        sptNnzIndex newcap = vec->cap + append_vec->cap;
+        sptValue *newdata = numa_realloc(vec->data, vec->cap * sizeof *vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "ValVec Append ValVec");
+        vec->cap = newcap;
+        vec->data = newdata;
+    }
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
+        vec->data[vec->len + i] = append_vec->data[i];
+    }
+    vec->len = newlen;
+
+    return 0;
+}
+
+// With numa and start location
+int sptAppendValueVectorWithVectorStartFromNuma(sptValueVector *vec, const sptValueVector *append_vec, unsigned long long start) {
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
+        vec->data[start + i] = append_vec->data[i];
+    }
     return 0;
 }
 
@@ -156,11 +204,11 @@ int ptiAppendValueVectorWithVector(ptiValueVector *vec, const ptiValueVector *ap
  * but the values of them are undefined. If the new size if smaller than the
  * current size, values at the end will be truncated.
  */
-int ptiResizeValueVector(ptiValueVector *vec, ptiNnzIndex const size) {
-    ptiNnzIndex newcap = size < 2 ? 2 : size;
+int sptResizeValueVector(sptValueVector *vec, sptNnzIndex const size) {
+    sptNnzIndex newcap = size < 2 ? 2 : size;
     if(newcap != vec->cap) {
-        ptiValue *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "ValVec Resize");
+        sptValue *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "ValVec Resize");
         vec->len = size;
         vec->cap = newcap;
         vec->data = newdata;
@@ -170,13 +218,29 @@ int ptiResizeValueVector(ptiValueVector *vec, ptiNnzIndex const size) {
     return 0;
 }
 
+//numa
+int sptResizeValueVectorNuma(sptValueVector *vec, sptNnzIndex const size) {
+    sptNnzIndex newcap = size < 2 ? 2 : size;
+    if(newcap != vec->cap) {
+        sptValue *newdata = numa_realloc(vec->data, vec->cap * sizeof *vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "ValVec Resize");
+        vec->len = size;
+        vec->cap = newcap;
+        vec->data = newdata;
+    } else {
+        vec->len = size;
+    }
+    return 0;
+}
+
+
 /**
  * Release the memory buffer a value vector is holding
  *
  * @param vec a pointer to a valid value vector
  *
  */
-void ptiFreeValueVector(ptiValueVector *vec) {
+void sptFreeValueVector(sptValueVector *vec) {
     vec->len = 0;
     vec->cap = 0;
     free(vec->data);
@@ -184,16 +248,16 @@ void ptiFreeValueVector(ptiValueVector *vec) {
 
 
 /*
- * Initialize a new ptiIndex vector
+ * Initialize a new sptIndex vector
  *
- * @param vec a valid pointer to an uninitialized ptiIndex variable,
+ * @param vec a valid pointer to an uninitialized sptIndex variable,
  * @param len number of values to create
  * @param cap total number of values to reserve
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
 
-int ptiNewIndexVector(ptiIndexVector *vec, ptiNnzIndex len, ptiNnzIndex cap) {
+int sptNewIndexVector(sptIndexVector *vec, sptNnzIndex len, sptNnzIndex cap) {
     if(cap < len) {
         cap = len;
     }
@@ -203,21 +267,38 @@ int ptiNewIndexVector(ptiIndexVector *vec, ptiNnzIndex len, ptiNnzIndex cap) {
     vec->len = len;
     vec->cap = cap;
     vec->data = malloc(cap * sizeof *vec->data);
-    pti_CheckOSError(!vec->data, "IdxVec New");
+    spt_CheckOSError(!vec->data, "IdxVec New");
     memset(vec->data, 0, cap * sizeof *vec->data);
     return 0;
 }
 
+//Numa
+int sptNewIndexVectorNuma(sptIndexVector *vec, sptNnzIndex len, sptNnzIndex cap, int numa_node) {
+    if(cap < len) {
+        cap = len;
+    }
+    if(cap < 2) {
+        cap = 2;
+    }
+    vec->len = len;
+    vec->cap = cap;
+    vec->data = numa_alloc_onnode(cap * sizeof *vec->data, numa_node);
+    //spt_CheckOSError(!vec->data, "IdxVec New");
+    //memset(vec->data, 0, cap * sizeof *vec->data);
+    return 0;
+}
+
+
 /**
  * Fill an existed dense index vector with a specified constant
  *
- * @param vec   a valid pointer to an existed ptiIndexVector variable,
+ * @param vec   a valid pointer to an existed sptIndexVector variable,
  * @param num   a given value constant
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
-int ptiConstantIndexVector(ptiIndexVector * const vec, ptiIndex const num) {
-    for(ptiNnzIndex i=0; i<vec->len; ++i)
+int sptConstantIndexVector(sptIndexVector * const vec, sptIndex const num) {
+    for(sptNnzIndex i=0; i<vec->len; ++i)
         vec->data[i] = num;
     return 0;
 }
@@ -230,12 +311,12 @@ int ptiConstantIndexVector(ptiIndexVector * const vec, ptiIndex const num) {
  *
  * The contents of `src` will be copied to `dest`.
  */
-int ptiCopyIndexVector(ptiIndexVector *dest, const ptiIndexVector *src, int const nt) {
-    int result = ptiNewIndexVector(dest, src->len, src->len);
-    pti_CheckError(result, "IdxVec Copy", NULL);
-#ifdef HIPARTI_USE_OPENMP
+int sptCopyIndexVector(sptIndexVector *dest, const sptIndexVector *src, int const nt) {
+    int result = sptNewIndexVector(dest, src->len, src->len);
+    spt_CheckError(result, "IdxVec Copy", NULL);
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for num_threads(nt)
-    for (ptiNnzIndex i=0; i<src->len; ++i) {
+    for (sptNnzIndex i=0; i<src->len; ++i) {
         dest->data[i] = src->data[i];
     }
 #else
@@ -246,22 +327,40 @@ int ptiCopyIndexVector(ptiIndexVector *dest, const ptiIndexVector *src, int cons
 
 
 /**
- * Add a value to the end of a ptiIndexVector
+ * Add a value to the end of a sptIndexVector
  *
  * @param vec   a pointer to a valid index vector
  * @param value the value to be appended
  *
  * The length of the size vector will be changed to contain the new value.
  */
-int ptiAppendIndexVector(ptiIndexVector *vec, ptiIndex const value) {
+int sptAppendIndexVector(sptIndexVector *vec, sptIndex const value) {
     if(vec->cap <= vec->len) {
 #ifndef MEMCHECK_MODE
-        ptiNnzIndex newcap = vec->cap + vec->cap/2;
+        sptNnzIndex newcap = vec->cap + vec->cap/2;
 #else
-        ptiNnzIndex newcap = vec->len+1;
+        sptNnzIndex newcap = vec->len+1;
 #endif
-        ptiIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "IdxVec Append");
+        sptIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "IdxVec Append");
+        vec->cap = newcap;
+        vec->data = newdata;
+    }
+    vec->data[vec->len] = value;
+    ++vec->len;
+    return 0;
+}
+
+//numa
+int sptAppendIndexVectorNuma(sptIndexVector *vec, sptIndex const value) {
+    if(vec->cap <= vec->len) {
+#ifndef MEMCHECK_MODE
+        sptNnzIndex newcap = vec->cap + vec->cap/2;
+#else
+        sptNnzIndex newcap = vec->len+1;
+#endif
+        sptIndex *newdata = numa_realloc(vec->data, vec->cap * sizeof *vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "IdxVec Append");
         vec->cap = newcap;
         vec->data = newdata;
     }
@@ -278,20 +377,46 @@ int ptiAppendIndexVector(ptiIndexVector *vec, ptiIndex const value) {
  *
  * The values from `append_vec` will be appended to `vec`.
  */
-int ptiAppendIndexVectorWithVector(ptiIndexVector *vec, const ptiIndexVector *append_vec) {
-    ptiNnzIndex newlen = vec->len + append_vec->len;
+int sptAppendIndexVectorWithVector(sptIndexVector *vec, const sptIndexVector *append_vec) {
+    sptNnzIndex newlen = vec->len + append_vec->len;
     if(vec->cap <= newlen) {
-        ptiNnzIndex newcap = vec->cap + append_vec->cap;
-        ptiIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "IdxVec Append IdxVec");
+        sptNnzIndex newcap = vec->cap + append_vec->cap;
+        sptIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "IdxVec Append IdxVec");
         vec->cap = newcap;
         vec->data = newdata;
     }
-    for(ptiNnzIndex i=0; i<append_vec->len; ++i) {
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
         vec->data[vec->len + i] = append_vec->data[i];
     }
     vec->len = newlen;
 
+    return 0;
+}
+
+//numa
+int sptAppendIndexVectorWithVectorNuma(sptIndexVector *vec, const sptIndexVector *append_vec) {
+    sptNnzIndex newlen = vec->len + append_vec->len;
+    if(vec->cap <= newlen) {
+        sptNnzIndex newcap = vec->cap + append_vec->cap;
+        sptIndex *newdata = numa_realloc(vec->data, vec->cap * sizeof *vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "IdxVec Append IdxVec");
+        vec->cap = newcap;
+        vec->data = newdata;
+    }
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
+        vec->data[vec->len + i] = append_vec->data[i];
+    }
+    vec->len = newlen;
+
+    return 0;
+}
+
+//numa
+int sptAppendIndexVectorWithVectorStartFromNuma(sptIndexVector *vec, const sptIndexVector *append_vec, unsigned long long start) {
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
+        vec->data[start + i] = append_vec->data[i];
+    }
     return 0;
 }
 
@@ -305,11 +430,11 @@ int ptiAppendIndexVectorWithVector(ptiIndexVector *vec, const ptiIndexVector *ap
  * but the values of them are undefined. If the new size if smaller than the
  * current size, values at the end will be truncated.
  */
-int ptiResizeIndexVector(ptiIndexVector *vec, ptiNnzIndex const size) {
-    ptiNnzIndex newcap = size < 2 ? 2 : size;
+int sptResizeIndexVector(sptIndexVector *vec, sptNnzIndex const size) {
+    sptNnzIndex newcap = size < 2 ? 2 : size;
     if(newcap != vec->cap) {
-        ptiIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "IdxVec Resize");
+        sptIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "IdxVec Resize");
         vec->len = size;
         vec->cap = newcap;
         vec->data = newdata;
@@ -319,13 +444,43 @@ int ptiResizeIndexVector(ptiIndexVector *vec, ptiNnzIndex const size) {
     return 0;
 }
 
+//numa
+int sptResizeIndexVectorNuma(sptIndexVector *vec, sptNnzIndex const size) {
+    sptNnzIndex newcap = size < 2 ? 2 : size;
+    if(newcap != vec->cap) {
+        sptIndex *newdata = numa_realloc(vec->data, vec->cap * sizeof *vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "IdxVec Resize");
+        vec->len = size;
+        vec->cap = newcap;
+        vec->data = newdata;
+    } else {
+        vec->len = size;
+    }
+    return 0;
+}
+
+long int sptInIndexVector(sptIndexVector * inds, sptNnzIndex nmodes, sptNnzIndex nnz, sptIndexVector * cand_inds) {  
+    int mark;
+    for (sptNnzIndex i = 0; i < nnz; ++i) {
+        mark = 1;
+        for(sptIndex m = 0; m < nmodes; ++m) {
+            if(cand_inds->data[m] != inds[m].data[i] ) {
+                mark = 0;
+                break;  // no need to compare other modes
+            }
+        }
+        if (mark == 1) return i;
+    }
+    return -1;
+}
+
 /**
- * Release the memory buffer a ptiIndexVector is holding
+ * Release the memory buffer a sptIndexVector is holding
  *
  * @param vec a pointer to a valid size vector
  *
  */
-void ptiFreeIndexVector(ptiIndexVector *vec) {
+void sptFreeIndexVector(sptIndexVector *vec) {
     free(vec->data);
     vec->len = 0;
     vec->cap = 0;
@@ -333,16 +488,16 @@ void ptiFreeIndexVector(ptiIndexVector *vec) {
 
 
 /*
- * Initialize a new ptiElementIndexVector vector
+ * Initialize a new sptElementIndexVector vector
  *
- * @param vec a valid pointer to an uninitialized ptiElementIndex variable,
+ * @param vec a valid pointer to an uninitialized sptElementIndex variable,
  * @param len number of values to create
  * @param cap total number of values to reserve
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
 
-int ptiNewElementIndexVector(ptiElementIndexVector *vec, ptiNnzIndex len, ptiNnzIndex cap) {
+int sptNewElementIndexVector(sptElementIndexVector *vec, sptNnzIndex len, sptNnzIndex cap) {
     if(cap < len) {
         cap = len;
     }
@@ -352,7 +507,7 @@ int ptiNewElementIndexVector(ptiElementIndexVector *vec, ptiNnzIndex len, ptiNnz
     vec->len = len;
     vec->cap = cap;
     vec->data = malloc(cap * sizeof *vec->data);
-    pti_CheckOSError(!vec->data, "EleIdxVec New");
+    spt_CheckOSError(!vec->data, "EleIdxVec New");
     memset(vec->data, 0, cap * sizeof *vec->data);
     return 0;
 }
@@ -360,13 +515,13 @@ int ptiNewElementIndexVector(ptiElementIndexVector *vec, ptiNnzIndex len, ptiNnz
 /**
  * Fill an existed dense element index vector with a specified constant
  *
- * @param vec   a valid pointer to an existed ptiElementIndexVector variable,
+ * @param vec   a valid pointer to an existed sptElementIndexVector variable,
  * @param num   a given value constant
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
-int ptiConstantElementIndexVector(ptiElementIndexVector * const vec, ptiElementIndex const num) {
-    for(ptiNnzIndex i=0; i<vec->len; ++i)
+int sptConstantElementIndexVector(sptElementIndexVector * const vec, sptElementIndex const num) {
+    for(sptNnzIndex i=0; i<vec->len; ++i)
         vec->data[i] = num;
     return 0;
 }
@@ -379,30 +534,30 @@ int ptiConstantElementIndexVector(ptiElementIndexVector * const vec, ptiElementI
  *
  * The contents of `src` will be copied to `dest`.
  */
-int ptiCopyElementIndexVector(ptiElementIndexVector *dest, const ptiElementIndexVector *src) {
-    int result = ptiNewElementIndexVector(dest, src->len, src->len);
-    pti_CheckError(result, "EleIdxVec Copy", NULL);
+int sptCopyElementIndexVector(sptElementIndexVector *dest, const sptElementIndexVector *src) {
+    int result = sptNewElementIndexVector(dest, src->len, src->len);
+    spt_CheckError(result, "EleIdxVec Copy", NULL);
     memcpy(dest->data, src->data, src->len * sizeof *src->data);
     return 0;
 }
 
 /**
- * Add a value to the end of a ptiElementIndexVector
+ * Add a value to the end of a sptElementIndexVector
  *
  * @param vec   a pointer to a valid element index vector
  * @param value the value to be appended
  *
  * The length of the element index vector will be changed to contain the new value.
  */
-int ptiAppendElementIndexVector(ptiElementIndexVector *vec, ptiElementIndex const value) {
+int sptAppendElementIndexVector(sptElementIndexVector *vec, sptElementIndex const value) {
     if(vec->cap <= vec->len) {
 #ifndef MEMCHECK_MODE
-        ptiNnzIndex newcap = vec->cap + vec->cap/2;
+        sptNnzIndex newcap = vec->cap + vec->cap/2;
 #else
-        ptiNnzIndex newcap = vec->len+1;
+        sptNnzIndex newcap = vec->len+1;
 #endif
-        ptiElementIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "EleIdxVec Append");
+        sptElementIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "EleIdxVec Append");
         vec->cap = newcap;
         vec->data = newdata;
     }
@@ -419,16 +574,16 @@ int ptiAppendElementIndexVector(ptiElementIndexVector *vec, ptiElementIndex cons
  *
  * The values from `append_vec` will be appended to `vec`.
  */
-int ptiAppendElementIndexVectorWithVector(ptiElementIndexVector *vec, const ptiElementIndexVector *append_vec) {
-    ptiNnzIndex newlen = vec->len + append_vec->len;
+int sptAppendElementIndexVectorWithVector(sptElementIndexVector *vec, const sptElementIndexVector *append_vec) {
+    sptNnzIndex newlen = vec->len + append_vec->len;
     if(vec->cap <= newlen) {
-        ptiNnzIndex newcap = vec->cap + append_vec->cap;
-        ptiElementIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "EleIdxVec Append EleIdxVec");
+        sptNnzIndex newcap = vec->cap + append_vec->cap;
+        sptElementIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "EleIdxVec Append EleIdxVec");
         vec->cap = newcap;
         vec->data = newdata;
     }
-    for(ptiNnzIndex i=0; i<append_vec->len; ++i) {
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
         vec->data[vec->len + i] = append_vec->data[i];
     }
     vec->len = newlen;
@@ -446,11 +601,11 @@ int ptiAppendElementIndexVectorWithVector(ptiElementIndexVector *vec, const ptiE
  * but the values of them are undefined. If the new size if smaller than the
  * current size, values at the end will be truncated.
  */
-int ptiResizeElementIndexVector(ptiElementIndexVector *vec, ptiNnzIndex const size) {
-    ptiNnzIndex newcap = size < 2 ? 2 : size;
+int sptResizeElementIndexVector(sptElementIndexVector *vec, sptNnzIndex const size) {
+    sptNnzIndex newcap = size < 2 ? 2 : size;
     if(newcap != vec->cap) {
-        ptiElementIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "EleIdxVec Resize");
+        sptElementIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "EleIdxVec Resize");
         vec->len = size;
         vec->cap = newcap;
         vec->data = newdata;
@@ -461,12 +616,12 @@ int ptiResizeElementIndexVector(ptiElementIndexVector *vec, ptiNnzIndex const si
 }
 
 /**
- * Release the memory buffer a ptiElementIndexVector is holding
+ * Release the memory buffer a sptElementIndexVector is holding
  *
  * @param vec a pointer to a valid size vector
  *
  */
-void ptiFreeElementIndexVector(ptiElementIndexVector *vec) {
+void sptFreeElementIndexVector(sptElementIndexVector *vec) {
     free(vec->data);
     vec->len = 0;
     vec->cap = 0;
@@ -474,16 +629,16 @@ void ptiFreeElementIndexVector(ptiElementIndexVector *vec) {
 
 
 /*
- * Initialize a new ptiBlockIndexVector vector
+ * Initialize a new sptBlockIndexVector vector
  *
- * @param vec a valid pointer to an uninitialized ptiBlockIndex variable,
+ * @param vec a valid pointer to an uninitialized sptBlockIndex variable,
  * @param len number of values to create
  * @param cap total number of values to reserve
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
 
-int ptiNewBlockIndexVector(ptiBlockIndexVector *vec, ptiNnzIndex len, ptiNnzIndex cap) {
+int sptNewBlockIndexVector(sptBlockIndexVector *vec, sptNnzIndex len, sptNnzIndex cap) {
     if(cap < len) {
         cap = len;
     }
@@ -493,7 +648,7 @@ int ptiNewBlockIndexVector(ptiBlockIndexVector *vec, ptiNnzIndex len, ptiNnzInde
     vec->len = len;
     vec->cap = cap;
     vec->data = malloc(cap * sizeof *vec->data);
-    pti_CheckOSError(!vec->data, "BlkIdxVec New");
+    spt_CheckOSError(!vec->data, "BlkIdxVec New");
     memset(vec->data, 0, cap * sizeof *vec->data);
     return 0;
 }
@@ -501,13 +656,13 @@ int ptiNewBlockIndexVector(ptiBlockIndexVector *vec, ptiNnzIndex len, ptiNnzInde
 /**
  * Fill an existed dense element index vector with a specified constant
  *
- * @param vec   a valid pointer to an existed ptiBlockIndexVector variable,
+ * @param vec   a valid pointer to an existed sptBlockIndexVector variable,
  * @param num   a given value constant
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
-int ptiConstantBlockIndexVector(ptiBlockIndexVector * const vec, ptiBlockIndex const num) {
-    for(ptiNnzIndex i=0; i<vec->len; ++i)
+int sptConstantBlockIndexVector(sptBlockIndexVector * const vec, sptBlockIndex const num) {
+    for(sptNnzIndex i=0; i<vec->len; ++i)
         vec->data[i] = num;
     return 0;
 }
@@ -520,30 +675,30 @@ int ptiConstantBlockIndexVector(ptiBlockIndexVector * const vec, ptiBlockIndex c
  *
  * The contents of `src` will be copied to `dest`.
  */
-int ptiCopyBlockIndexVector(ptiBlockIndexVector *dest, const ptiBlockIndexVector *src) {
-    int result = ptiNewBlockIndexVector(dest, src->len, src->len);
-    pti_CheckError(result, "BlkIdxVec Copy", NULL);
+int sptCopyBlockIndexVector(sptBlockIndexVector *dest, const sptBlockIndexVector *src) {
+    int result = sptNewBlockIndexVector(dest, src->len, src->len);
+    spt_CheckError(result, "BlkIdxVec Copy", NULL);
     memcpy(dest->data, src->data, src->len * sizeof *src->data);
     return 0;
 }
 
 /**
- * Add a value to the end of a ptiBlockIndexVector
+ * Add a value to the end of a sptBlockIndexVector
  *
  * @param vec   a pointer to a valid block index vector
  * @param value the value to be appended
  *
  * The length of the block index vector will be changed to contain the new value.
  */
-int ptiAppendBlockIndexVector(ptiBlockIndexVector *vec, ptiBlockIndex const value) {
+int sptAppendBlockIndexVector(sptBlockIndexVector *vec, sptBlockIndex const value) {
     if(vec->cap <= vec->len) {
 #ifndef MEMCHECK_MODE
-        ptiNnzIndex newcap = vec->cap + vec->cap/2;
+        sptNnzIndex newcap = vec->cap + vec->cap/2;
 #else
-        ptiNnzIndex newcap = vec->len+1;
+        sptNnzIndex newcap = vec->len+1;
 #endif
-        ptiBlockIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "BlkIdxVec Append");
+        sptBlockIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "BlkIdxVec Append");
         vec->cap = newcap;
         vec->data = newdata;
     }
@@ -560,16 +715,16 @@ int ptiAppendBlockIndexVector(ptiBlockIndexVector *vec, ptiBlockIndex const valu
  *
  * The values from `append_vec` will be appended to `vec`.
  */
-int ptiAppendBlockIndexVectorWithVector(ptiBlockIndexVector *vec, const ptiBlockIndexVector *append_vec) {
-    ptiNnzIndex newlen = vec->len + append_vec->len;
+int sptAppendBlockIndexVectorWithVector(sptBlockIndexVector *vec, const sptBlockIndexVector *append_vec) {
+    sptNnzIndex newlen = vec->len + append_vec->len;
     if(vec->cap <= newlen) {
-        ptiNnzIndex newcap = vec->cap + append_vec->cap;
-        ptiBlockIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "BlkIdxVec Append BlkIdxVec");
+        sptNnzIndex newcap = vec->cap + append_vec->cap;
+        sptBlockIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "BlkIdxVec Append BlkIdxVec");
         vec->cap = newcap;
         vec->data = newdata;
     }
-    for(ptiNnzIndex i=0; i<append_vec->len; ++i) {
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
         vec->data[vec->len + i] = append_vec->data[i];
     }
     vec->len = newlen;
@@ -587,11 +742,11 @@ int ptiAppendBlockIndexVectorWithVector(ptiBlockIndexVector *vec, const ptiBlock
  * but the values of them are undefined. If the new size if smaller than the
  * current size, values at the end will be truncated.
  */
-int ptiResizeBlockIndexVector(ptiBlockIndexVector *vec, ptiNnzIndex const size) {
-    ptiNnzIndex newcap = size < 2 ? 2 : size;
+int sptResizeBlockIndexVector(sptBlockIndexVector *vec, sptNnzIndex const size) {
+    sptNnzIndex newcap = size < 2 ? 2 : size;
     if(newcap != vec->cap) {
-        ptiBlockIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "BlkIdxVec Resize");
+        sptBlockIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "BlkIdxVec Resize");
         vec->len = size;
         vec->cap = newcap;
         vec->data = newdata;
@@ -602,12 +757,12 @@ int ptiResizeBlockIndexVector(ptiBlockIndexVector *vec, ptiNnzIndex const size) 
 }
 
 /**
- * Release the memory buffer a ptiBlockIndexVector is holding
+ * Release the memory buffer a sptBlockIndexVector is holding
  *
  * @param vec a pointer to a valid size vector
  *
  */
-void ptiFreeBlockIndexVector(ptiBlockIndexVector *vec) {
+void sptFreeBlockIndexVector(sptBlockIndexVector *vec) {
     free(vec->data);
     vec->len = 0;
     vec->cap = 0;
@@ -615,16 +770,16 @@ void ptiFreeBlockIndexVector(ptiBlockIndexVector *vec) {
 
 
 /*
- * Initialize a new ptiNnzIndexVector vector
+ * Initialize a new sptNnzIndexVector vector
  *
- * @param vec a valid pointer to an uninitialized ptiNnzIndex variable,
+ * @param vec a valid pointer to an uninitialized sptNnzIndex variable,
  * @param len number of values to create
  * @param cap total number of values to reserve
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
 
-int ptiNewNnzIndexVector(ptiNnzIndexVector *vec, ptiNnzIndex len, ptiNnzIndex cap) {
+int sptNewNnzIndexVector(sptNnzIndexVector *vec, sptNnzIndex len, sptNnzIndex cap) {
     if(cap < len) {
         cap = len;
     }
@@ -634,7 +789,7 @@ int ptiNewNnzIndexVector(ptiNnzIndexVector *vec, ptiNnzIndex len, ptiNnzIndex ca
     vec->len = len;
     vec->cap = cap;
     vec->data = malloc(cap * sizeof *vec->data);
-    pti_CheckOSError(!vec->data, "NnzIdxVec New");
+    spt_CheckOSError(!vec->data, "NnzIdxVec New");
     memset(vec->data, 0, cap * sizeof *vec->data);
     return 0;
 }
@@ -642,13 +797,13 @@ int ptiNewNnzIndexVector(ptiNnzIndexVector *vec, ptiNnzIndex len, ptiNnzIndex ca
 /**
  * Fill an existed dense long nnz index vector with a specified constant
  *
- * @param vec   a valid pointer to an existed ptiNnzIndexVector variable,
+ * @param vec   a valid pointer to an existed sptNnzIndexVector variable,
  * @param num   a given value constant
  *
  * Vector is a type of one-dimentional array with dynamic length
  */
-int ptiConstantNnzIndexVector(ptiNnzIndexVector * const vec, ptiNnzIndex const num) {
-    for(ptiNnzIndex i=0; i<vec->len; ++i)
+int sptConstantNnzIndexVector(sptNnzIndexVector * const vec, sptNnzIndex const num) {
+    for(sptNnzIndex i=0; i<vec->len; ++i)
         vec->data[i] = num;
     return 0;
 }
@@ -661,30 +816,30 @@ int ptiConstantNnzIndexVector(ptiNnzIndexVector * const vec, ptiNnzIndex const n
  *
  * The contents of `src` will be copied to `dest`.
  */
-int ptiCopyNnzIndexVector(ptiNnzIndexVector *dest, const ptiNnzIndexVector *src) {
-    int result = ptiNewNnzIndexVector(dest, src->len, src->len);
-    pti_CheckError(result, "NnzIdxVec Copy", NULL);
+int sptCopyNnzIndexVector(sptNnzIndexVector *dest, const sptNnzIndexVector *src) {
+    int result = sptNewNnzIndexVector(dest, src->len, src->len);
+    spt_CheckError(result, "NnzIdxVec Copy", NULL);
     memcpy(dest->data, src->data, src->len * sizeof *src->data);
     return 0;
 }
 
 /**
- * Add a value to the end of a ptiNnzIndexVector
+ * Add a value to the end of a sptNnzIndexVector
  *
  * @param vec   a pointer to a valid long nnz index vector
  * @param value the value to be appended
  *
  * The length of the long nnz index vector will be changed to contain the new value.
  */
-int ptiAppendNnzIndexVector(ptiNnzIndexVector *vec, ptiNnzIndex const value) {
+int sptAppendNnzIndexVector(sptNnzIndexVector *vec, sptNnzIndex const value) {
     if(vec->cap <= vec->len) {
 #ifndef MEMCHECK_MODE
-        ptiNnzIndex newcap = vec->cap + vec->cap/2;
+        sptNnzIndex newcap = vec->cap + vec->cap/2;
 #else
-        ptiNnzIndex newcap = vec->len+1;
+        sptNnzIndex newcap = vec->len+1;
 #endif
-        ptiNnzIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "NnzIdxVec Append");
+        sptNnzIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "NnzIdxVec Append");
         vec->cap = newcap;
         vec->data = newdata;
     }
@@ -701,16 +856,16 @@ int ptiAppendNnzIndexVector(ptiNnzIndexVector *vec, ptiNnzIndex const value) {
  *
  * The values from `append_vec` will be appended to `vec`.
  */
-int ptiAppendNnzIndexVectorWithVector(ptiNnzIndexVector *vec, const ptiNnzIndexVector *append_vec) {
-    ptiNnzIndex newlen = vec->len + append_vec->len;
+int sptAppendNnzIndexVectorWithVector(sptNnzIndexVector *vec, const sptNnzIndexVector *append_vec) {
+    sptNnzIndex newlen = vec->len + append_vec->len;
     if(vec->cap <= newlen) {
-        ptiNnzIndex newcap = vec->cap + append_vec->cap;
-        ptiNnzIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "NnzIdxVec Append NnzIdxVec");
+        sptNnzIndex newcap = vec->cap + append_vec->cap;
+        sptNnzIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "NnzIdxVec Append NnzIdxVec");
         vec->cap = newcap;
         vec->data = newdata;
     }
-    for(ptiNnzIndex i=0; i<append_vec->len; ++i) {
+    for(sptNnzIndex i=0; i<append_vec->len; ++i) {
         vec->data[vec->len + i] = append_vec->data[i];
     }
     vec->len = newlen;
@@ -728,11 +883,11 @@ int ptiAppendNnzIndexVectorWithVector(ptiNnzIndexVector *vec, const ptiNnzIndexV
  * but the values of them are undefined. If the new size if smaller than the
  * current size, values at the end will be truncated.
  */
-int ptiResizeNnzIndexVector(ptiNnzIndexVector *vec, ptiNnzIndex const size) {
-    ptiNnzIndex newcap = size < 2 ? 2 : size;
+int sptResizeNnzIndexVector(sptNnzIndexVector *vec, sptNnzIndex const size) {
+    sptNnzIndex newcap = size < 2 ? 2 : size;
     if(newcap != vec->cap) {
-        ptiNnzIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
-        pti_CheckOSError(!newdata, "NnzIdxVec Resize");
+        sptNnzIndex *newdata = realloc(vec->data, newcap * sizeof *vec->data);
+        spt_CheckOSError(!newdata, "NnzIdxVec Resize");
         vec->len = size;
         vec->cap = newcap;
         vec->data = newdata;
@@ -743,12 +898,12 @@ int ptiResizeNnzIndexVector(ptiNnzIndexVector *vec, ptiNnzIndex const size) {
 }
 
 /**
- * Release the memory buffer a ptiNnzIndexVector is holding
+ * Release the memory buffer a sptNnzIndexVector is holding
  *
  * @param vec a pointer to a valid long nnz vector
  *
  */
-void ptiFreeNnzIndexVector(ptiNnzIndexVector *vec) {
+void sptFreeNnzIndexVector(sptNnzIndexVector *vec) {
     free(vec->data);
     vec->len = 0;
     vec->cap = 0;

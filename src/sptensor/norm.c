@@ -16,13 +16,13 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 #include <math.h>
 
-double pti_SparseTensorNorm(const ptiSparseTensor *X) {
+double spt_SparseTensorNorm(const sptSparseTensor *X) {
     double sqnorm = 0;
-    ptiNnzIndex i;
+    sptNnzIndex i;
     for(i = 0; i < X->nnz; ++i) {
         double cell_value = X->values.data[i];
         sqnorm += cell_value * cell_value;

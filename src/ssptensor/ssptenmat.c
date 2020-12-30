@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "ssptensor.h"
 
 
@@ -29,11 +29,11 @@
  * @parameter[out] csrRowPtr  preallocated length = tsr->nnz+1
  * @parameter[out] csrColInd  preallocated length = tsr->nnz * tsr->ndims[tsr->mode]
  */
-int pti_SemiSparseTensorToSparseMatrixCSR(
-    ptiValue                  *csrVal,
-    ptiNnzIndex                        *csrRowPtr,
-    ptiIndex                        *csrColInd,
-    const ptiSemiSparseTensor  *tsr
+int spt_SemiSparseTensorToSparseMatrixCSR(
+    sptValue                  *csrVal,
+    sptNnzIndex                        *csrRowPtr,
+    sptIndex                        *csrColInd,
+    const sptSemiSparseTensor  *tsr
 ) {
     /*
         For tensor size [X, Y, Z], col_dim = 1,
@@ -41,20 +41,20 @@ int pti_SemiSparseTensorToSparseMatrixCSR(
         where [a, b, c] will map to [a * X + c, b].
     */
 
-    const ptiIndex stride = tsr->stride;
-    const ptiIndex ncols = tsr->ndims[tsr->mode];
-    for(ptiNnzIndex row = 0; row < tsr->nnz; ++row) {
-        for(ptiIndex col = 0; col < ncols; ++col) {
+    const sptIndex stride = tsr->stride;
+    const sptIndex ncols = tsr->ndims[tsr->mode];
+    for(sptNnzIndex row = 0; row < tsr->nnz; ++row) {
+        for(sptIndex col = 0; col < ncols; ++col) {
             csrVal[row * ncols + col] = tsr->values.values[row * stride + col];
         }
     }
 
-    for(ptiNnzIndex row = 0; row <= tsr->nnz; ++row) {
+    for(sptNnzIndex row = 0; row <= tsr->nnz; ++row) {
         csrRowPtr[row] = row * ncols;
     }
 
-    for(ptiNnzIndex row = 0; row < tsr->nnz; ++row) {
-        for(ptiIndex col = 0; col < ncols; ++col) {
+    for(sptNnzIndex row = 0; row < tsr->nnz; ++row) {
+        for(sptIndex col = 0; col < ncols; ++col) {
             csrColInd[row * ncols + col] = col;
         }
     }

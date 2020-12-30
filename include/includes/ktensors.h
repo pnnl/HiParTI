@@ -16,46 +16,46 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HIPARTI_KTENSORS_H
-#define HIPARTI_KTENSORS_H
+#ifndef PARTI_KTENSORS_H
+#define PARTI_KTENSORS_H
 
 /* Kruskal tensor */
-int ptiNewKruskalTensor(ptiKruskalTensor *ktsr, ptiIndex nmodes, const ptiIndex ndims[], ptiIndex rank);
-void ptiKruskalTensorInverseShuffleIndices(ptiKruskalTensor * ktsr, ptiIndex ** map_inds);
-void ptiFreeKruskalTensor(ptiKruskalTensor *ktsr);
-int ptiDumpKruskalTensor(ptiKruskalTensor *ktsr, FILE *fp);
+int sptNewKruskalTensor(sptKruskalTensor *ktsr, sptIndex nmodes, const sptIndex ndims[], sptIndex rank);
+void sptKruskalTensorInverseShuffleIndices(sptKruskalTensor * ktsr, sptIndex ** map_inds);
+void sptFreeKruskalTensor(sptKruskalTensor *ktsr);
+int sptDumpKruskalTensor(sptKruskalTensor *ktsr, FILE *fp);
 double KruskalTensorFit(
-  ptiSparseTensor const * const ptien,
-  ptiValue const * const __restrict lambda,
-  ptiMatrix ** mats,
-  ptiMatrix ** ata);
+  sptSparseTensor const * const spten,
+  sptValue const * const __restrict lambda,
+  sptMatrix ** mats,
+  sptMatrix ** ata);
 double KruskalTensorFrobeniusNormSquared(
-  ptiIndex const nmodes,
-  ptiValue const * const __restrict lambda,
-  ptiMatrix ** ata);
+  sptIndex const nmodes,
+  sptValue const * const __restrict lambda,
+  sptMatrix ** ata);
 double SparseKruskalTensorInnerProduct(
-  ptiIndex const nmodes,
-  ptiValue const * const __restrict lambda,
-  ptiMatrix ** mats);
+  sptIndex const nmodes,
+  sptValue const * const __restrict lambda,
+  sptMatrix ** mats);
 
 
 /* Rank Kruskal tensor, ncols = small rank (<= 256)  */
-int ptiNewRankKruskalTensor(ptiRankKruskalTensor *ktsr, ptiIndex nmodes, const ptiIndex ndims[], ptiElementIndex rank);
-void ptiRankKruskalTensorInverseShuffleIndices(ptiRankKruskalTensor * ktsr, ptiIndex ** map_inds);
-void ptiFreeRankKruskalTensor(ptiRankKruskalTensor *ktsr);
-int ptiDumpRankKruskalTensor(ptiRankKruskalTensor *ktsr, FILE *fp);
+int sptNewRankKruskalTensor(sptRankKruskalTensor *ktsr, sptIndex nmodes, const sptIndex ndims[], sptElementIndex rank);
+void sptRankKruskalTensorInverseShuffleIndices(sptRankKruskalTensor * ktsr, sptIndex ** map_inds);
+void sptFreeRankKruskalTensor(sptRankKruskalTensor *ktsr);
+int sptDumpRankKruskalTensor(sptRankKruskalTensor *ktsr, FILE *fp);
 double KruskalTensorFitHiCOO(
-  ptiSparseTensorHiCOO const * const hitsr,
-  ptiValue const * const __restrict lambda,
-  ptiRankMatrix ** mats,
-  ptiRankMatrix ** ata);
+  sptSparseTensorHiCOO const * const hitsr,
+  sptValue const * const __restrict lambda,
+  sptRankMatrix ** mats,
+  sptRankMatrix ** ata);
 double KruskalTensorFrobeniusNormSquaredRank(
-  ptiIndex const nmodes,
-  ptiValue const * const __restrict lambda,
-  ptiRankMatrix ** ata);
+  sptIndex const nmodes,
+  sptValue const * const __restrict lambda,
+  sptRankMatrix ** ata);
 double SparseKruskalTensorInnerProductRank(
-  ptiIndex const nmodes,
-  ptiValue const * const __restrict lambda,
-  ptiRankMatrix ** mats);
+  sptIndex const nmodes,
+  sptValue const * const __restrict lambda,
+  sptRankMatrix ** mats);
 
 #endif

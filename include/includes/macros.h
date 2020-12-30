@@ -16,43 +16,41 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HIPARTI_MACROS_H
-#define HIPARTI_MACROS_H
+#ifndef PARTI_MACROS_H
+#define PARTI_MACROS_H
 
 /* User defined system configuration */
 #define NUM_CORES 32    // for L size and determine privatilization or not
 #define L1_SIZE 32000    // for B size
 #define LLC_SIZE 40960000
-#define MAX_BLOCK_LVLS 3
-
 #define PAR_DEGREE_REDUCE 20     // for determine privatilization or not  
 #define PAR_MAX_DEGREE 100 // for L size
 #define PAR_MIN_DEGREE 4 // for L size
 #define NNZ_STATISTICS
 #define INSERTION_SORT_LENGTH 1000
 
-#ifndef HIPARTI_DEFAULT_NLOCKS
+#ifndef PARTI_DEFAULT_NLOCKS
 #define PARTI_DEFAULT_NLOCKS 1024
 #endif
 
-#ifndef HIPARTI_DEFAULT_LOCK_PAD_SIZE
+#ifndef PARTI_DEFAULT_LOCK_PAD_SIZE
 #define PARTI_DEFAULT_LOCK_PAD_SIZE 16
 #endif
 
 /**
  * An opaque data type to store a specific time point, using either CPU or GPU clock.
  */
-typedef struct ptiTagTimer *ptiTimer;
+typedef struct sptTagTimer *sptTimer;
 
 typedef enum {
-    PTIERR_NO_ERROR       = 0,
-    PTIERR_UNKNOWN        = 1,
-    PTIERR_SHAPE_MISMATCH = 2,
-    PTIERR_VALUE_ERROR    = 3,
-    PTIERR_ZERO_DIVISION  = 4,
-    PTIERR_NO_MORE        = 99,
-    PTIERR_OS_ERROR       = 0x10000,
-    PTIERR_CUDA_ERROR     = 0x20000,
-} PtiError;
+    SPTERR_NO_ERROR       = 0,
+    SPTERR_UNKNOWN        = 1,
+    SPTERR_SHAPE_MISMATCH = 2,
+    SPTERR_VALUE_ERROR    = 3,
+    SPTERR_ZERO_DIVISION  = 4,
+    SPTERR_NO_MORE        = 99,
+    SPTERR_OS_ERROR       = 0x10000,
+    SPTERR_CUDA_ERROR     = 0x20000,
+} SptError;
 
 #endif

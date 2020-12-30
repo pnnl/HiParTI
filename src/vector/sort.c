@@ -16,13 +16,13 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <stdlib.h>
 #include <string.h>
- 
+#include "../error/error.h"
 
-void ptiQuickSortNnzIndexArray(ptiNnzIndex * array, ptiNnzIndex l, ptiNnzIndex r) {
-    ptiNnzIndex i, j, p;
+void sptQuickSortNnzIndexArray(sptNnzIndex * array, sptNnzIndex l, sptNnzIndex r) {
+    sptNnzIndex i, j, p;
     if(r-l < 2) {
         return;
     }
@@ -37,7 +37,7 @@ void ptiQuickSortNnzIndexArray(ptiNnzIndex * array, ptiNnzIndex l, ptiNnzIndex r
         if(i >= j) {
             break;
         }
-        ptiNnzIndex tmp = array[i];
+        sptNnzIndex tmp = array[i];
         array[i] = array[j];
         array[j] = tmp;
         if(i == p) {
@@ -46,6 +46,6 @@ void ptiQuickSortNnzIndexArray(ptiNnzIndex * array, ptiNnzIndex l, ptiNnzIndex r
             p = i;
         }
     }
-    ptiQuickSortNnzIndexArray(array, l, i);
-    ptiQuickSortNnzIndexArray(array, i, r);
+    sptQuickSortNnzIndexArray(array, l, i);
+    sptQuickSortNnzIndexArray(array, i, r);
 }

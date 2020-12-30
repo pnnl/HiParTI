@@ -16,14 +16,12 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 
-int ptiSparseTensorMulScalar(ptiSparseTensor *X, ptiValue const a) {
+int sptSparseTensorMulScalar(sptSparseTensor *X, sptValue const a) {
     if(a != 0) {
-        ptiNnzIndex i;
-#ifdef HIPARTI_USE_OPENMP
+        sptNnzIndex i;
         #pragma omp parallel for schedule(static)
-#endif
         for(i = 0; i < X->nnz; ++i) {
             X->values.data[i] *= a;
         }

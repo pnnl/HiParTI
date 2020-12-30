@@ -16,8 +16,8 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HIPARTI_HELPER_FUNCS_H
-#define HIPARTI_HELPER_FUNCS_H
+#ifndef PARTI_HELPER_FUNCS_H
+#define PARTI_HELPER_FUNCS_H
 
 #include <stdlib.h>
 
@@ -26,58 +26,57 @@
      __typeof__ (b) _b = (b); \
    _a > _b ? _a : _b; })
 
-int ptiGetLastError(const char **module, const char **file, unsigned *line, const char **reason);
-void ptiClearLastError(void);
-void pti_Panic(const char *file, unsigned line, const char *expr);
+int sptGetLastError(const char **module, const char **file, unsigned *line, const char **reason);
+void sptClearLastError(void);
+void spt_Panic(const char *file, unsigned line, const char *expr);
 /**
  * The assert function that always execute even when `NDEBUG` is set
  *
  * Quick & dirty error checking. Useful when writing small programs.
  */
-#define ptiAssert(expr) ((expr) ? (void) 0 : pti_Panic(__FILE__, __LINE__, #expr))
+#define sptAssert(expr) ((expr) ? (void) 0 : spt_Panic(__FILE__, __LINE__, #expr))
 
 /* Helper function for pure C module */
-int ptiCudaSetDevice(int device);
-int ptiCudaGetLastError(void);
+int sptCudaSetDevice(int device);
+int sptCudaGetLastError(void);
 
 /* Timer functions, using either CPU or GPU timer */
-int ptiNewTimer(ptiTimer *timer, int use_cuda);
-int ptiStartTimer(ptiTimer timer);
-int ptiStopTimer(ptiTimer timer);
-double ptiElapsedTime(const ptiTimer timer);
-double ptiPrintElapsedTime(const ptiTimer timer, const char *name);
-double ptiPrintAverageElapsedTime(const ptiTimer timer, const int niters, const char *name);
-int ptiFreeTimer(ptiTimer timer);
-double ptiPrintGFLOPS(const double elapsed_time, const ptiNnzIndex flops, const char *name);
+int sptNewTimer(sptTimer *timer, int use_cuda);
+int sptStartTimer(sptTimer timer);
+int sptStopTimer(sptTimer timer);
+double sptElapsedTime(const sptTimer timer);
+double sptPrintElapsedTime(const sptTimer timer, const char *name);
+double sptPrintAverageElapsedTime(const sptTimer timer, const int niters, const char *name);
+int sptFreeTimer(sptTimer timer);
 
 /* Base functions */
-char * ptiBytesString(uint64_t const bytes);
-ptiValue ptiRandomValue(void);
+char * sptBytesString(uint64_t const bytes);
+sptValue sptRandomValue(void);
 
 
 /**
  * OMP Lock functions
  */
-ptiMutexPool * ptiMutexAlloc();
-ptiMutexPool * SptMutexAllocCustom(
-    ptiIndex const num_locks,
-    ptiIndex const pad_size);
-void ptiMutexFree(ptiMutexPool * pool);
+sptMutexPool * sptMutexAlloc();
+sptMutexPool * SptMutexAllocCustom(
+    sptIndex const num_locks,
+    sptIndex const pad_size);
+void sptMutexFree(sptMutexPool * pool);
 
-static inline ptiIndex ptiMutexTranslateId(
-    ptiIndex const id,
-    ptiIndex const num_locks,
-    ptiIndex const pad_size)
+static inline sptIndex sptMutexTranslateId(
+    sptIndex const id,
+    sptIndex const num_locks,
+    sptIndex const pad_size)
 {
   return (id % num_locks) * pad_size;
 }
 
-static inline void ptiMutexSetLock(
-    ptiMutexPool * const pool,
-    ptiIndex const id)
+static inline void sptMutexSetLock(
+    sptMutexPool * const pool,
+    sptIndex const id)
 {
-#ifdef HIPARTI_USE_OPENMP
-  ptiIndex const lock_id = ptiMutexTranslateId(id, pool->nlocks, pool->padsize);
+#ifdef PARTI_USE_OPENMP
+  sptIndex const lock_id = sptMutexTranslateId(id, pool->nlocks, pool->padsize);
   omp_set_lock(pool->locks + lock_id);
 #else
   fprintf(stderr, "OpenMP support is not enabled.\n");
@@ -85,12 +84,12 @@ static inline void ptiMutexSetLock(
 #endif
 }
 
-static inline void ptiMutexUnsetLock(
-    ptiMutexPool * const pool,
-    ptiIndex const id)
+static inline void sptMutexUnsetLock(
+    sptMutexPool * const pool,
+    sptIndex const id)
 {
-#ifdef HIPARTI_USE_OPENMP
-  ptiIndex const lock_id = ptiMutexTranslateId(id, pool->nlocks, pool->padsize);
+#ifdef PARTI_USE_OPENMP
+  sptIndex const lock_id = sptMutexTranslateId(id, pool->nlocks, pool->padsize);
   omp_unset_lock(pool->locks + lock_id);
 #else
   fprintf(stderr, "OpenMP support is not enabled.\n");

@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 
 /**
@@ -28,43 +28,43 @@
  * The name "DotMul" comes from the MATLAB operator ".*". This function is not
  * for "inner product" or "outer product".
  */
-int ptiSparseTensorDotMul(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSparseTensor * const Y)
+int sptSparseTensorDotMul(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor * const Y)
 {
-    ptiNnzIndex i, j;
+    sptNnzIndex i, j;
     int result;
     /* Ensure X and Y are in same shape */
     if(Y->nmodes != X->nmodes) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns DotMul", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns DotMul", "shape mismatch");
     }
     for(i = 0; i < X->nmodes; ++i) {
         if(Y->ndims[i] != X->ndims[i]) {
-            pti_CheckError(PTIERR_SHAPE_MISMATCH, "SpTns DotMul", "shape mismatch");
+            spt_CheckError(SPTERR_SHAPE_MISMATCH, "SpTns DotMul", "shape mismatch");
         }
     }
 
-    ptiNewSparseTensor(Z, X->nmodes, X->ndims);
+    sptNewSparseTensor(Z, X->nmodes, X->ndims);
 
-    ptiTimer timer;
-    ptiNewTimer(&timer, 0);
-    ptiStartTimer(timer);
+    sptTimer timer;
+    sptNewTimer(&timer, 0);
+    sptStartTimer(timer);
 
     /* Multiply elements one by one, assume indices are ordered */
     i = 0;
     j = 0;
     while(i < X->nnz && j < Y->nnz) {
-        int compare = pti_SparseTensorCompareIndices(X, i, Y, j);
+        int compare = spt_SparseTensorCompareIndices(X, i, Y, j);
 
         if(compare > 0) {
             ++j;
         } else if(compare < 0) {
             ++i;
         } else {
-            for(ptiIndex mode = 0; mode < X->nmodes; ++mode) {
-                result = ptiAppendIndexVector(&Z->inds[mode], X->inds[mode].data[i]);
-                pti_CheckError(result, "SpTns DotMul", NULL);
+            for(sptIndex mode = 0; mode < X->nmodes; ++mode) {
+                result = sptAppendIndexVector(&Z->inds[mode], X->inds[mode].data[i]);
+                spt_CheckError(result, "SpTns DotMul", NULL);
             }
-            result = ptiAppendValueVector(&Z->values, X->values.data[i] * Y->values.data[j]);
-            pti_CheckError(result, "SpTns DotMul", NULL);
+            result = sptAppendValueVector(&Z->values, X->values.data[i] * Y->values.data[j]);
+            spt_CheckError(result, "SpTns DotMul", NULL);
 
             ++Z->nnz;
             ++i;
@@ -72,16 +72,16 @@ int ptiSparseTensorDotMul(ptiSparseTensor *Z, ptiSparseTensor * const X, ptiSpar
         }
     }
 
-    ptiStopTimer(timer);
-    ptiPrintElapsedTime(timer, "CPU  SpTns DotMul");
-    ptiFreeTimer(timer);
+    sptStopTimer(timer);
+    sptPrintElapsedTime(timer, "CPU  SpTns DotMul");
+    sptFreeTimer(timer);
 
     /* Check whether elements become zero after adding.
        If so, fill the gap with the [nnz-1]'th element.
     */
-    pti_SparseTensorCollectZeros(Z);
+    spt_SparseTensorCollectZeros(Z);
     /* Sort the indices */
-    ptiSparseTensorSortIndex(Z, 1, 1);
+    sptSparseTensorSortIndex(Z, 1, 1);
     
     return 0;
 }

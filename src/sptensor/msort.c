@@ -16,22 +16,22 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 #include <assert.h>
 
-/* TODO: delete these functions below, this function is different from "ptiSparseTensorSortIndexSingleMode" */
+/* TODO: delete these functions below, this function is different from "sptSparseTensorSortIndexSingleMode" */
     
-static void pti_QuickSortAtMode(ptiSparseTensor *tsr, ptiNnzIndex const l, ptiNnzIndex const r, ptiIndex const mode);
-static int pti_SparseTensorCompareAtMode(const ptiSparseTensor *tsr1, ptiNnzIndex const ind1, const ptiSparseTensor *tsr2, ptiNnzIndex const ind2, ptiIndex const mode);
+static void spt_QuickSortAtMode(sptSparseTensor *tsr, sptNnzIndex const l, sptNnzIndex const r, sptIndex const mode);
+static int spt_SparseTensorCompareAtMode(const sptSparseTensor *tsr1, sptNnzIndex const ind1, const sptSparseTensor *tsr2, sptNnzIndex const ind2, sptIndex const mode);
 
 /**
  * Reorder the elements in a sparse tensor lexicographically, but consider mode `mode` the last one
  * @param tsr  the sparse tensor to operate on
  * @param mode the mode to be considered the last
  */
-void ptiSparseTensorSortIndexAtMode(ptiSparseTensor *tsr, ptiIndex const mode, int force) {
-    ptiIndex m;
+void sptSparseTensorSortIndexAtMode(sptSparseTensor *tsr, sptIndex const mode, int force) {
+    sptIndex m;
     int needsort = 0;
 
     for(m = 0; m < mode; ++m) {
@@ -52,40 +52,40 @@ void ptiSparseTensorSortIndexAtMode(ptiSparseTensor *tsr, ptiIndex const mode, i
     }
 
     if(needsort || force) {
-        pti_QuickSortAtMode(tsr, 0, tsr->nnz, mode);
+        spt_QuickSortAtMode(tsr, 0, tsr->nnz, mode);
     }
 }
 
-static void pti_QuickSortAtMode(ptiSparseTensor *tsr, ptiNnzIndex const l, ptiNnzIndex const r, ptiIndex const mode) {
-    ptiNnzIndex i, j, p;
+static void spt_QuickSortAtMode(sptSparseTensor *tsr, sptNnzIndex const l, sptNnzIndex const r, sptIndex const mode) {
+    sptNnzIndex i, j, p;
     if(r-l < 2) {
         return;
     }
     p = (l+r) / 2;
     for(i = l, j = r-1; ; ++i, --j) {
-        while(pti_SparseTensorCompareAtMode(tsr, i, tsr, p, mode) < 0) {
+        while(spt_SparseTensorCompareAtMode(tsr, i, tsr, p, mode) < 0) {
             ++i;
         }
-        while(pti_SparseTensorCompareAtMode(tsr, p, tsr, j, mode) < 0) {
+        while(spt_SparseTensorCompareAtMode(tsr, p, tsr, j, mode) < 0) {
             --j;
         }
         if(i >= j) {
             break;
         }
-        pti_SwapValues(tsr, i, j);
+        spt_SwapValues(tsr, i, j);
         if(i == p) {
             p = j;
         } else if(j == p) {
             p = i;
         }
     }
-    pti_QuickSortAtMode(tsr, l, i, mode);
-    pti_QuickSortAtMode(tsr, i, r, mode);
+    spt_QuickSortAtMode(tsr, l, i, mode);
+    spt_QuickSortAtMode(tsr, i, r, mode);
 }
 
-static int pti_SparseTensorCompareAtMode(const ptiSparseTensor *tsr1, ptiNnzIndex const ind1, const ptiSparseTensor *tsr2, ptiNnzIndex const ind2, ptiIndex const mode) {
-    ptiIndex i;
-    ptiIndex eleind1, eleind2;
+static int spt_SparseTensorCompareAtMode(const sptSparseTensor *tsr1, sptNnzIndex const ind1, const sptSparseTensor *tsr2, sptNnzIndex const ind2, sptIndex const mode) {
+    sptIndex i;
+    sptIndex eleind1, eleind2;
     assert(tsr1->nmodes == tsr2->nmodes);
     for(i = 0; i < tsr1->nmodes; ++i) {
         if(i != mode) {

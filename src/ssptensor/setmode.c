@@ -16,22 +16,23 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "ssptensor.h"
+#include "../error/error.h"
 
-int pti_SemiSparseTensorSetMode(
-    ptiSemiSparseTensor       *dest,
-    const ptiSemiSparseTensor *src,
-    ptiIndex                    newmode
+int spt_SemiSparseTensorSetMode(
+    sptSemiSparseTensor       *dest,
+    const sptSemiSparseTensor *src,
+    sptIndex                    newmode
 ) {
     int result = 0;
     /* Something like this, but better */
-    ptiSparseTensor tmp;
-    result = ptiSemiSparseTensorToSparseTensor(&tmp, src, 0);
-    pti_CheckError(result, "ssp setmode", NULL);
-    ptiSparseTensorToSemiSparseTensor(dest, &tmp, newmode);
-    pti_CheckError(result, "ssp setmode", NULL);
-    ptiFreeSparseTensor(&tmp);
+    sptSparseTensor tmp;
+    result = sptSemiSparseTensorToSparseTensor(&tmp, src, 0);
+    spt_CheckError(result, "ssp setmode", NULL);
+    sptSparseTensorToSemiSparseTensor(dest, &tmp, newmode);
+    spt_CheckError(result, "ssp setmode", NULL);
+    sptFreeSparseTensor(&tmp);
 
     return 0;
 }

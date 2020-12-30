@@ -16,29 +16,29 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef HIPARTI_SSPTENSORS_H
-#define HIPARTI_SSPTENSORS_H
+#ifndef PARTI_SSPTENSORS_H
+#define PARTI_SSPTENSORS_H
 
 
 /**
  * epsilon is a small positive value, every -epsilon < x < x would be considered as zero
  */
-int ptiSemiSparseTensorToSparseTensor(ptiSparseTensor *dest, const ptiSemiSparseTensor *src, ptiValue epsilon);
+int sptSemiSparseTensorToSparseTensor(sptSparseTensor *dest, const sptSemiSparseTensor *src, sptValue epsilon);
 
-int ptiNewSemiSparseTensor(ptiSemiSparseTensor *tsr, ptiIndex nmodes, ptiIndex mode, const ptiIndex ndims[]);
-int ptiCopySemiSparseTensor(ptiSemiSparseTensor *dest, const ptiSemiSparseTensor *src);
-void ptiFreeSemiSparseTensor(ptiSemiSparseTensor *tsr);
-int ptiSparseTensorToSemiSparseTensor(ptiSemiSparseTensor *dest, const ptiSparseTensor *src, ptiIndex mode);
-int ptiSemiSparseTensorSortIndex(ptiSemiSparseTensor *tsr);
+int sptNewSemiSparseTensor(sptSemiSparseTensor *tsr, sptIndex nmodes, sptIndex mode, const sptIndex ndims[]);
+int sptCopySemiSparseTensor(sptSemiSparseTensor *dest, const sptSemiSparseTensor *src);
+void sptFreeSemiSparseTensor(sptSemiSparseTensor *tsr);
+int sptSparseTensorToSemiSparseTensor(sptSemiSparseTensor *dest, const sptSparseTensor *src, sptIndex mode);
+int sptSemiSparseTensorSortIndex(sptSemiSparseTensor *tsr);
 
-int ptiNewSemiSparseTensorGeneral(ptiSemiSparseTensorGeneral *tsr, ptiIndex nmodes, const ptiIndex ndims[], ptiIndex ndmodes, const ptiIndex dmodes[]);
-void ptiFreeSemiSparseTensorGeneral(ptiSemiSparseTensorGeneral *tsr);
+int sptNewSemiSparseTensorGeneral(sptSemiSparseTensorGeneral *tsr, sptIndex nmodes, const sptIndex ndims[], sptIndex ndmodes, const sptIndex dmodes[]);
+void sptFreeSemiSparseTensorGeneral(sptSemiSparseTensorGeneral *tsr);
 
 /**
  * Set indices of a semi-sparse according to a reference sparse
- * Call ptiSparseTensorSortIndexAtMode on ref first
+ * Call sptSparseTensorSortIndexAtMode on ref first
  */
-int ptiSemiSparseTensorSetIndices(ptiSemiSparseTensor *dest, ptiNnzIndexVector *fiberidx, ptiSparseTensor *ref);
+int sptSemiSparseTensorSetIndices(sptSemiSparseTensor *dest, sptNnzIndexVector *fiberidx, sptSparseTensor *ref);
 
 
 /**
@@ -46,6 +46,6 @@ int ptiSemiSparseTensorSetIndices(ptiSemiSparseTensor *dest, ptiNnzIndexVector *
  * Input: semi-sparse tensor X[I][J][K], dense matrix U[I][R}, mode n={0, 1, 2}
  * Output: sparse tensor Y[I][J][R] (e.g. n=2)
  */
-int ptiSemiSparseTensorMulMatrix(ptiSemiSparseTensor *Y, const ptiSemiSparseTensor *X, const ptiMatrix *U, ptiIndex mode);
-int ptiCudaSemiSparseTensorMulMatrix(ptiSemiSparseTensor *Y, const ptiSemiSparseTensor *X, const ptiMatrix *U, ptiIndex mode);
+int sptSemiSparseTensorMulMatrix(sptSemiSparseTensor *Y, const sptSemiSparseTensor *X, const sptMatrix *U, sptIndex mode);
+int sptCudaSemiSparseTensorMulMatrix(sptSemiSparseTensor *Y, const sptSemiSparseTensor *X, const sptMatrix *U, sptIndex mode);
 #endif

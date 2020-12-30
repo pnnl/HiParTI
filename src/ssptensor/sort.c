@@ -16,66 +16,66 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "ssptensor.h"
 #include <stdlib.h>
 #include <string.h>
 
-static void pti_QuickSortIndex(ptiSemiSparseTensor *tsr, ptiNnzIndex l, ptiNnzIndex r, ptiValue buffer[]);
-static void pti_SwapValues(ptiSemiSparseTensor *tsr, ptiNnzIndex ind1, ptiNnzIndex ind2, ptiValue buffer[]);
+static void spt_QuickSortIndex(sptSemiSparseTensor *tsr, sptNnzIndex l, sptNnzIndex r, sptValue buffer[]);
+static void spt_SwapValues(sptSemiSparseTensor *tsr, sptNnzIndex ind1, sptNnzIndex ind2, sptValue buffer[]);
 
 /**
  * Reorder the elements in a semi sparse tensor lexicographically
  * @param tsr  the semi sparse tensor to operate on
  */
-int ptiSemiSparseTensorSortIndex(ptiSemiSparseTensor *tsr) {
-    ptiValue *buffer = malloc(tsr->stride * sizeof (ptiValue));
-    pti_CheckOSError(!buffer, "SspTns SortIndex");
-    pti_QuickSortIndex(tsr, 0, tsr->nnz, buffer);
+int sptSemiSparseTensorSortIndex(sptSemiSparseTensor *tsr) {
+    sptValue *buffer = malloc(tsr->stride * sizeof (sptValue));
+    spt_CheckOSError(!buffer, "SspTns SortIndex");
+    spt_QuickSortIndex(tsr, 0, tsr->nnz, buffer);
     free(buffer);
     return 0;
 }
 
-static void pti_QuickSortIndex(ptiSemiSparseTensor *tsr, ptiNnzIndex l, ptiNnzIndex r, ptiValue buffer[]) {
-    ptiNnzIndex i, j, p;
+static void spt_QuickSortIndex(sptSemiSparseTensor *tsr, sptNnzIndex l, sptNnzIndex r, sptValue buffer[]) {
+    sptNnzIndex i, j, p;
     if(r-l < 2) {
         return;
     }
     p = (l+r) / 2;
     for(i = l, j = r-1; ; ++i, --j) {
-        while(pti_SemiSparseTensorCompareIndices(tsr, i, tsr, p) < 0) {
+        while(spt_SemiSparseTensorCompareIndices(tsr, i, tsr, p) < 0) {
             ++i;
         }
-        while(pti_SemiSparseTensorCompareIndices(tsr, p, tsr, j) < 0) {
+        while(spt_SemiSparseTensorCompareIndices(tsr, p, tsr, j) < 0) {
             --j;
         }
         if(i >= j) {
             break;
         }
-        pti_SwapValues(tsr, i, j, buffer);
+        spt_SwapValues(tsr, i, j, buffer);
         if(i == p) {
             p = j;
         } else if(j == p) {
             p = i;
         }
     }
-    pti_QuickSortIndex(tsr, l, i, buffer);
-    pti_QuickSortIndex(tsr, i, r, buffer);
+    spt_QuickSortIndex(tsr, l, i, buffer);
+    spt_QuickSortIndex(tsr, i, r, buffer);
 }
 
-static void pti_SwapValues(ptiSemiSparseTensor *tsr, ptiNnzIndex ind1, ptiNnzIndex ind2, ptiValue buffer[]) {
-    ptiIndex i;
+static void spt_SwapValues(sptSemiSparseTensor *tsr, sptNnzIndex ind1, sptNnzIndex ind2, sptValue buffer[]) {
+    sptIndex i;
     for(i = 0; i < tsr->nmodes; ++i) {
         if(i != tsr->mode) {
-            ptiIndex eleind1 = tsr->inds[i].data[ind1];
-            ptiIndex eleind2 = tsr->inds[i].data[ind2];
+            sptIndex eleind1 = tsr->inds[i].data[ind1];
+            sptIndex eleind2 = tsr->inds[i].data[ind2];
             tsr->inds[i].data[ind1] = eleind2;
             tsr->inds[i].data[ind2] = eleind1;
         }
     }
     if(ind1 != ind2) {
-        memcpy(buffer, &tsr->values.values[ind1*tsr->stride], tsr->stride * sizeof (ptiNnzIndex));
-        memcpy(&tsr->values.values[ind1*tsr->stride], &tsr->values.values[ind2*tsr->stride], tsr->stride * sizeof (ptiNnzIndex));
-        memcpy(&tsr->values.values[ind2*tsr->stride], buffer, tsr->stride * sizeof (ptiNnzIndex));
+        memcpy(buffer, &tsr->values.values[ind1*tsr->stride], tsr->stride * sizeof (sptNnzIndex));
+        memcpy(&tsr->values.values[ind1*tsr->stride], &tsr->values.values[ind2*tsr->stride], tsr->stride * sizeof (sptNnzIndex));
+        memcpy(&tsr->values.values[ind2*tsr->stride], buffer, tsr->stride * sizeof (sptNnzIndex));
     }
 }

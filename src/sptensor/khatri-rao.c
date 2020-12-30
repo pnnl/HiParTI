@@ -16,7 +16,7 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include "sptensor.h"
 #include <stdlib.h>
 #include <string.h>
@@ -24,31 +24,31 @@
 /* jli: (TODO) Keep this function, but add another Khatri-Rao product for two dense matrices. */
 /* jli: (Future TODO) Add Khatri-Rao product for two sparse matrices. */
 
-int ptiSparseTensorKhatriRaoMul(ptiSparseTensor *Y, const ptiSparseTensor *A, const ptiSparseTensor *B) {
-    ptiIndex nmodes;
-    ptiIndex mode;
-    ptiIndex *inds;
-    ptiNnzIndex i, j;
+int sptSparseTensorKhatriRaoMul(sptSparseTensor *Y, const sptSparseTensor *A, const sptSparseTensor *B) {
+    sptIndex nmodes;
+    sptIndex mode;
+    sptIndex *inds;
+    sptNnzIndex i, j;
     int result;
     if(A->nmodes != B->nmodes) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "Khatri-Rao", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "Khatri-Rao", "shape mismatch");
     }
     nmodes = A->nmodes;
     if(nmodes == 0) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "Khatri-Rao", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "Khatri-Rao", "shape mismatch");
     }
     if(A->ndims[nmodes-1] != B->ndims[nmodes-1]) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "Khatri-Rao", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "Khatri-Rao", "shape mismatch");
     }
     inds = malloc(nmodes * sizeof *inds);
-    pti_CheckOSError(!inds, "Khatri-Rao");
+    spt_CheckOSError(!inds, "Khatri-Rao");
     for(mode = 0; mode < nmodes-1; ++mode) {
         inds[mode] = A->ndims[mode] * B->ndims[mode];
     }
     inds[nmodes-1] = A->ndims[mode];
-    result = ptiNewSparseTensor(Y, nmodes, inds);
+    result = sptNewSparseTensor(Y, nmodes, inds);
     free(inds);
-    pti_CheckError(result, "Khatri-Rao", NULL);
+    spt_CheckError(result, "Khatri-Rao", NULL);
     /* For each element in A and B */
     for(i = 0; i < A->nnz; ++i) {
         for(j = 0; j < B->nnz; ++j) {
@@ -58,14 +58,14 @@ int ptiSparseTensorKhatriRaoMul(ptiSparseTensor *Y, const ptiSparseTensor *A, co
                     where f(in, jn) = jn + in * Jn
                 */
                 for(mode = 0; mode < nmodes-1; ++mode) {
-                    ptiAppendIndexVector(&Y->inds[mode], A->inds[mode].data[i] * B->ndims[mode] + B->inds[mode].data[j]);
+                    sptAppendIndexVector(&Y->inds[mode], A->inds[mode].data[i] * B->ndims[mode] + B->inds[mode].data[j]);
                 }
-                ptiAppendIndexVector(&Y->inds[nmodes-1], A->inds[nmodes-1].data[i]);
-                ptiAppendValueVector(&Y->values, A->values.data[i] * B->values.data[j]);
+                sptAppendIndexVector(&Y->inds[nmodes-1], A->inds[nmodes-1].data[i]);
+                sptAppendValueVector(&Y->values, A->values.data[i] * B->values.data[j]);
                 ++Y->nnz;
             }
         }
     }
-    ptiSparseTensorSortIndex(Y, 1, 1);
+    sptSparseTensorSortIndex(Y, 1, 1);
     return 0;
 }

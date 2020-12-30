@@ -16,41 +16,42 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <math.h>
+#include "../error/error.h"
 
 /**
  * Initialize a new dense matrix
  *
- * @param mtx   a valid pointer to an uninitialized ptiMatrix variable
+ * @param mtx   a valid pointer to an uninitialized sptMatrix variable
  * @param nrows the number of rows
  * @param ncols the number of columns
  *
  * The memory layout of this dense matrix is a flat 2D array, with `ncols`
  * rounded up to multiples of 8
  */
-int ptiNewMatrix(ptiMatrix *mtx, ptiIndex const nrows, ptiIndex const ncols) {
+int sptNewMatrix(sptMatrix *mtx, sptIndex const nrows, sptIndex const ncols) {
     mtx->nrows = nrows;
     mtx->ncols = ncols;
     mtx->cap = nrows != 0 ? nrows : 1;
     mtx->stride = ((ncols-1)/8+1)*8;
 #ifdef _ISOC11_SOURCE
-    mtx->values = aligned_alloc(8 * sizeof (ptiValue), mtx->cap * mtx->stride * sizeof (ptiValue));
+    mtx->values = aligned_alloc(8 * sizeof (sptValue), mtx->cap * mtx->stride * sizeof (sptValue));
 #elif _POSIX_C_SOURCE >= 200112L
     {
-        int result = posix_memalign((void **) &mtx->values, 8 * sizeof (ptiValue), mtx->cap * mtx->stride * sizeof (ptiValue));
+        int result = posix_memalign((void **) &mtx->values, 8 * sizeof (sptValue), mtx->cap * mtx->stride * sizeof (sptValue));
         if(result != 0) {
             mtx->values = NULL;
         }
     }
 #else
-    mtx->values = malloc(mtx->cap * mtx->stride * sizeof (ptiValue));
+    mtx->values = malloc(mtx->cap * mtx->stride * sizeof (sptValue));
 #endif
-    pti_CheckOSError(!mtx->values, "Mtx New");
+    spt_CheckOSError(!mtx->values, "Mtx New");
     return 0;
 }
 
@@ -64,11 +65,11 @@ int ptiNewMatrix(ptiMatrix *mtx, ptiIndex const nrows, ptiIndex const ncols) {
  * The matrix is filled with uniform distributed pseudorandom number in [0, 1]
  * The random number will have a precision of 31 bits out of 51 bits
  */
-int ptiRandomizeMatrix(ptiMatrix *mtx) {
+int sptRandomizeMatrix(sptMatrix *mtx, sptIndex const nrows, sptIndex const ncols) {
   srand(time(NULL));
-  for(ptiIndex i=0; i<mtx->nrows; ++i)
-    for(ptiIndex j=0; j<mtx->ncols; ++j) {
-      mtx->values[i * mtx->stride + j] = i + j + 1; //ptiRandomValue();
+  for(sptIndex i=0; i<nrows; ++i)
+    for(sptIndex j=0; j<ncols; ++j) {
+      mtx->values[i * mtx->stride + j] = i + j + 1; //sptRandomValue();
     }
   return 0;
 }
@@ -82,14 +83,14 @@ int ptiRandomizeMatrix(ptiMatrix *mtx) {
  * @param ncols fill the specified number of columns
  *
  */
-int ptiIdentityMatrix(ptiMatrix *mtx) {
-  ptiIndex const nrows = mtx->nrows;
-  ptiIndex const ncols = mtx->ncols;
+int sptIdentityMatrix(sptMatrix *mtx) {
+  sptIndex const nrows = mtx->nrows;
+  sptIndex const ncols = mtx->ncols;
   assert(nrows == ncols);
-  for(ptiIndex i=0; i<nrows; ++i)
-    for(ptiIndex j=0; j<ncols; ++j)
+  for(sptIndex i=0; i<nrows; ++i)
+    for(sptIndex j=0; j<ncols; ++j)
       mtx->values[i * mtx->stride + j] = 0;
-  for(ptiIndex i=0; i<nrows; ++i)
+  for(sptIndex i=0; i<nrows; ++i)
     mtx->values[i * mtx->stride + i] = 1;
 
   return 0;
@@ -103,9 +104,9 @@ int ptiIdentityMatrix(ptiMatrix *mtx) {
  * @param val   a given value constant
  *
  */
-int ptiConstantMatrix(ptiMatrix *mtx, ptiValue const val) {
-  for(ptiIndex i=0; i<mtx->nrows; ++i)
-    for(ptiIndex j=0; j<mtx->ncols; ++j)
+int sptConstantMatrix(sptMatrix *mtx, sptValue const val) {
+  for(sptIndex i=0; i<mtx->nrows; ++i)
+    for(sptIndex j=0; j<mtx->ncols; ++j)
       mtx->values[i * mtx->stride + j] = val;
   return 0;
 }
@@ -118,14 +119,14 @@ int ptiConstantMatrix(ptiMatrix *mtx, ptiValue const val) {
  * @param[out] map_inds is the renumbering mapping 
  *
  */
-void ptiMatrixInverseShuffleIndices(ptiMatrix *mtx, ptiIndex * mode_map_inds) {
+void sptMatrixInverseShuffleIndices(sptMatrix *mtx, sptIndex * mode_map_inds) {
     /* Renumber matrix rows */
-    ptiIndex new_i;
-    ptiValue * tmp_values = malloc(mtx->cap * mtx->stride * sizeof (ptiValue));
+    sptIndex new_i;
+    sptValue * tmp_values = malloc(mtx->cap * mtx->stride * sizeof (sptValue));
 
-    for(ptiIndex i=0; i<mtx->nrows; ++i) {
+    for(sptIndex i=0; i<mtx->nrows; ++i) {
         new_i = mode_map_inds[i];
-        for(ptiIndex j=0; j<mtx->ncols; ++j) {
+        for(sptIndex j=0; j<mtx->ncols; ++j) {
             tmp_values[i * mtx->stride + j] = mtx->values[new_i * mtx->stride + j];
         }
     }
@@ -143,11 +144,11 @@ void ptiMatrixInverseShuffleIndices(ptiMatrix *mtx, ptiIndex * mode_map_inds) {
  *
  * The contents of `src` will be copied to `dest`.
  */
-int ptiCopyMatrix(ptiMatrix *dest, const ptiMatrix *src) {
-    int result = ptiNewMatrix(dest, src->nrows, src->ncols);
-    pti_CheckError(result, "Mtx Copy", NULL);
+int sptCopyMatrix(sptMatrix *dest, const sptMatrix *src) {
+    int result = sptNewMatrix(dest, src->nrows, src->ncols);
+    spt_CheckError(result, "Mtx Copy", NULL);
     assert(dest->stride == src->stride);
-    memcpy(dest->values, src->values, dest->nrows * dest->stride * sizeof (ptiValue));
+    memcpy(dest->values, src->values, dest->nrows * dest->stride * sizeof (sptValue));
     return 0;
 }
 
@@ -157,34 +158,34 @@ int ptiCopyMatrix(ptiMatrix *dest, const ptiMatrix *src) {
  * @param mtx    a pointer to a valid matrix
  * @param values an array of data to be added
  */
-int ptiAppendMatrix(ptiMatrix *mtx, const ptiValue values[]) {
+int sptAppendMatrix(sptMatrix *mtx, const sptValue values[]) {
     if(mtx->cap <= mtx->nrows) {
 #ifndef MEMCHECK_MODE
-        ptiIndex newcap = mtx->cap + mtx->cap/2;
+        sptIndex newcap = mtx->cap + mtx->cap/2;
 #else
-        ptiIndex newcap = mtx->nrows+1;
+        sptIndex newcap = mtx->nrows+1;
 #endif
-        ptiValue *newdata;
+        sptValue *newdata;
 #ifdef _ISOC11_SOURCE
-        newdata = aligned_alloc(8 * sizeof (ptiValue), newcap * mtx->stride * sizeof (ptiValue));
+        newdata = aligned_alloc(8 * sizeof (sptValue), newcap * mtx->stride * sizeof (sptValue));
 #elif _POSIX_C_SOURCE >= 200112L
         {
-            int result = posix_memalign((void **) &newdata, 8 * sizeof (ptiValue), newcap * mtx->stride * sizeof (ptiValue));
+            int result = posix_memalign((void **) &newdata, 8 * sizeof (sptValue), newcap * mtx->stride * sizeof (sptValue));
             if(result != 0) {
                 newdata = NULL;
             }
         }
 #else
-        newdata = malloc(newcap * mtx->stride * sizeof (ptiValue));
+        newdata = malloc(newcap * mtx->stride * sizeof (sptValue));
 #endif
-        pti_CheckOSError(!newdata, "Mtx Append");
-        memcpy(newdata, mtx->values, mtx->nrows * mtx->stride * sizeof (ptiValue));
+        spt_CheckOSError(!newdata, "Mtx Append");
+        memcpy(newdata, mtx->values, mtx->nrows * mtx->stride * sizeof (sptValue));
         free(mtx->values);
         mtx->cap = newcap;
         mtx->values = newdata;
     }
     if(values != NULL) {
-        memcpy(&mtx->values[mtx->nrows * mtx->stride], values, mtx->ncols * sizeof (ptiValue));
+        memcpy(&mtx->values[mtx->nrows * mtx->stride], values, mtx->ncols * sizeof (sptValue));
     }
     ++ mtx->nrows;
     return 0;
@@ -196,22 +197,22 @@ int ptiAppendMatrix(ptiMatrix *mtx, const ptiValue values[]) {
  * @param mtx     a pointer to a valid matrix
  * @param new_nrows the new number of rows `mtx` will have
  */
-int ptiResizeMatrix(ptiMatrix *mtx, ptiIndex const new_nrows) {
-    ptiValue *newdata;
+int sptResizeMatrix(sptMatrix *mtx, sptIndex const new_nrows) {
+    sptValue *newdata;
 #ifdef _ISOC11_SOURCE
-    newdata = aligned_alloc(8 * sizeof (ptiValue), new_nrows * mtx->stride * sizeof (ptiValue));
+    newdata = aligned_alloc(8 * sizeof (sptValue), new_nrows * mtx->stride * sizeof (sptValue));
 #elif _POSIX_C_SOURCE >= 200112L
     {
-        int result = posix_memalign((void **) &newdata, 8 * sizeof (ptiValue), new_nrows * mtx->stride * sizeof (ptiValue));
+        int result = posix_memalign((void **) &newdata, 8 * sizeof (sptValue), new_nrows * mtx->stride * sizeof (sptValue));
         if(result != 0) {
             newdata = NULL;
         }
     }
 #else
-    newdata = malloc(new_nrows * mtx->stride * sizeof (ptiValue));
+    newdata = malloc(new_nrows * mtx->stride * sizeof (sptValue));
 #endif
-    pti_CheckOSError(!newdata, "Mtx Resize");
-    memcpy(newdata, mtx->values, mtx->nrows * mtx->stride * sizeof (ptiValue));
+    spt_CheckOSError(!newdata, "Mtx Resize");
+    memcpy(newdata, mtx->values, mtx->nrows * mtx->stride * sizeof (sptValue));
     free(mtx->values);
     mtx->nrows = new_nrows;
     mtx->cap = new_nrows;
@@ -224,10 +225,10 @@ int ptiResizeMatrix(ptiMatrix *mtx, ptiIndex const new_nrows) {
  *
  * @param mtx a pointer to a valid matrix
  *
- * By using `ptiFreeMatrix`, a valid matrix would become uninitialized and
+ * By using `sptFreeMatrix`, a valid matrix would become uninitialized and
  * should not be used anymore prior to another initialization
  */
-void ptiFreeMatrix(ptiMatrix *mtx) {
+void sptFreeMatrix(sptMatrix *mtx) {
     free(mtx->values);
     mtx->nrows = 0;
     mtx->ncols = 0;
@@ -236,19 +237,19 @@ void ptiFreeMatrix(ptiMatrix *mtx) {
 }
 
 
-/**** ptiMatrix Operations ****/
+/**** sptMatrix Operations ****/
 
-int ptiMatrixDotMul(ptiMatrix const * A, ptiMatrix const * B, ptiMatrix const * C)
+int sptMatrixDotMul(sptMatrix const * A, sptMatrix const * B, sptMatrix const * C)
 {
-    ptiIndex nrows = A->nrows;
-    ptiIndex ncols = A->ncols;
-    ptiIndex stride = A->stride;
+    sptIndex nrows = A->nrows;
+    sptIndex ncols = A->ncols;
+    sptIndex stride = A->stride;
     assert(nrows == B->nrows && nrows == C->nrows);
     assert(ncols == B->ncols && ncols == C->ncols);
     assert(stride == B->stride && stride == C->stride);
 
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiIndex j=0; j < ncols; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptIndex j=0; j < ncols; ++j) {
             C->values[i*stride+j] = A->values[i*stride+j] * B->values[i*stride+j];
         }
     }
@@ -257,36 +258,36 @@ int ptiMatrixDotMul(ptiMatrix const * A, ptiMatrix const * B, ptiMatrix const * 
 }
 
 
-int ptiMatrixDotMulSeq(ptiIndex const mode, ptiIndex const nmodes, ptiMatrix ** mats)
+int sptMatrixDotMulSeq(sptIndex const mode, sptIndex const nmodes, sptMatrix ** mats)
 {
-    ptiIndex const nrows = mats[0]->nrows;
-    ptiIndex const ncols = mats[0]->ncols;
-    ptiIndex const stride = mats[0]->stride;
+    sptIndex const nrows = mats[0]->nrows;
+    sptIndex const ncols = mats[0]->ncols;
+    sptIndex const stride = mats[0]->stride;
 
-    for(ptiIndex m=1; m<nmodes+1; ++m) {
+    for(sptIndex m=1; m<nmodes+1; ++m) {
         assert(mats[m]->ncols == ncols);
         assert(mats[m]->nrows == nrows);
         assert(mats[m]->stride == stride);
     }
 
-    ptiValue * ovals = mats[nmodes]->values;
-#ifdef HIPARTI_USE_OPENMP
+    sptValue * ovals = mats[nmodes]->values;
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for
 #endif
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiIndex j=0; j < ncols; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptIndex j=0; j < ncols; ++j) {
             ovals[i * stride + j] = 1;
         }
     }
 
-    for(ptiIndex m=1; m < nmodes; ++m) {
-        ptiIndex const pm = (mode + m) % nmodes;
-        ptiValue const * vals = mats[pm]->values;
-#ifdef HIPARTI_USE_OPENMP
+    for(sptIndex m=1; m < nmodes; ++m) {
+        sptIndex const pm = (mode + m) % nmodes;
+        sptValue const * vals = mats[pm]->values;
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for
 #endif
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptIndex j=0; j < ncols; ++j) {
                 ovals[i * stride + j] *= vals[i * stride + j];
             }
         }
@@ -296,37 +297,37 @@ int ptiMatrixDotMulSeq(ptiIndex const mode, ptiIndex const nmodes, ptiMatrix ** 
 }
 
 
-int ptiMatrixDotMulSeqCol(ptiIndex const mode, ptiIndex const nmodes, ptiMatrix ** mats)
+int sptMatrixDotMulSeqCol(sptIndex const mode, sptIndex const nmodes, sptMatrix ** mats)
 {
-    ptiIndex const nrows = mats[0]->nrows;
-    ptiIndex const ncols = mats[0]->ncols;
-    ptiIndex const stride = mats[0]->stride;
+    sptIndex const nrows = mats[0]->nrows;
+    sptIndex const ncols = mats[0]->ncols;
+    sptIndex const stride = mats[0]->stride;
     // printf("stride: %lu\n", stride);
-    for(ptiIndex m=1; m<nmodes+1; ++m) {
+    for(sptIndex m=1; m<nmodes+1; ++m) {
         assert(mats[m]->ncols == ncols);
         assert(mats[m]->nrows == nrows);
         assert(mats[m]->stride == stride);
     }
 
-    ptiValue * ovals = mats[nmodes]->values;
-#ifdef HIPARTI_USE_OPENMP
+    sptValue * ovals = mats[nmodes]->values;
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for
 #endif
-    for(ptiIndex j=0; j < ncols; ++j) {
-        for(ptiIndex i=0; i < nrows; ++i) {
+    for(sptIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
             ovals[j * stride + i] = 1;
         }
     }
 
 
-    for(ptiIndex m=1; m < nmodes; ++m) {
-        ptiIndex const pm = (mode + m) % nmodes;
-        ptiValue const * vals = mats[pm]->values;
-#ifdef HIPARTI_USE_OPENMP
+    for(sptIndex m=1; m < nmodes; ++m) {
+        sptIndex const pm = (mode + m) % nmodes;
+        sptValue const * vals = mats[pm]->values;
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for
 #endif
-        for(ptiIndex j=0; j < ncols; ++j) {
-            for(ptiIndex i=0; i < nrows; ++i) {
+        for(sptIndex j=0; j < ncols; ++j) {
+            for(sptIndex i=0; i < nrows; ++i) {
                 ovals[j * stride + i] *= vals[j * stride + i];
             }
         }
@@ -337,46 +338,46 @@ int ptiMatrixDotMulSeqCol(ptiIndex const mode, ptiIndex const nmodes, ptiMatrix 
 
 
 /* mats (aTa) only stores upper triangle elements. */
-int ptiMatrixDotMulSeqTriangle(ptiIndex const mode, ptiIndex const nmodes, ptiMatrix ** mats)
+int sptMatrixDotMulSeqTriangle(sptIndex const mode, sptIndex const nmodes, sptMatrix ** mats)
 {
-    ptiIndex const nrows = mats[0]->nrows;
-    ptiIndex const ncols = mats[0]->ncols;
-    ptiIndex const stride = mats[0]->stride;
-    for(ptiIndex m=1; m<nmodes+1; ++m) {
+    sptIndex const nrows = mats[0]->nrows;
+    sptIndex const ncols = mats[0]->ncols;
+    sptIndex const stride = mats[0]->stride;
+    for(sptIndex m=1; m<nmodes+1; ++m) {
         assert(mats[m]->ncols == ncols);
         assert(mats[m]->nrows == nrows);
     }
 
-    ptiValue * ovals = mats[nmodes]->values;
-#ifdef HIPARTI_USE_OPENMP
+    sptValue * ovals = mats[nmodes]->values;
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for schedule(static)
 #endif
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiIndex j=0; j < ncols; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptIndex j=0; j < ncols; ++j) {
             ovals[j * stride + i] = 1.0;
         }
     }
 
 
-    for(ptiIndex m=1; m < nmodes; ++m) {
-        ptiIndex const pm = (mode + m) % nmodes;
-        ptiValue const * vals = mats[pm]->values;
-#ifdef HIPARTI_USE_OPENMP
+    for(sptIndex m=1; m < nmodes; ++m) {
+        sptIndex const pm = (mode + m) % nmodes;
+        sptValue const * vals = mats[pm]->values;
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for schedule(static)
 #endif
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiIndex j=i; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptIndex j=i; j < ncols; ++j) {
                 ovals[i * stride + j] *= vals[i * stride + j];
             }
         }
     }
 
     /* Copy upper triangle to lower part */
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for schedule(static)
 #endif
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiIndex j=0; j < i; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptIndex j=0; j < i; ++j) {
             ovals[i * stride + j] = ovals[j * stride + i];
         }
     }
@@ -386,29 +387,29 @@ int ptiMatrixDotMulSeqTriangle(ptiIndex const mode, ptiIndex const nmodes, ptiMa
 
 
 // Row-major
-int ptiMatrix2Norm(ptiMatrix * const A, ptiValue * const lambda)
+int sptMatrix2Norm(sptMatrix * const A, sptValue * const lambda)
 {
-    ptiIndex const nrows = A->nrows;
-    ptiIndex const ncols = A->ncols;
-    ptiIndex const stride = A->stride;
-    ptiValue * const vals = A->values;
-    ptiValue * buffer_lambda;
+    sptIndex const nrows = A->nrows;
+    sptIndex const ncols = A->ncols;
+    sptIndex const stride = A->stride;
+    sptValue * const vals = A->values;
+    sptValue * buffer_lambda;
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for
 #endif
-    for(ptiIndex j=0; j < ncols; ++j) {
+    for(sptIndex j=0; j < ncols; ++j) {
         lambda[j] = 0.0;
     }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel
     {
         int const nthreads = omp_get_num_threads();
         #pragma omp master
         {
-            buffer_lambda = (ptiValue *)malloc(nthreads * ncols * sizeof(ptiValue));
-            for(ptiNnzIndex j=0; j < nthreads * ncols; ++j)
+            buffer_lambda = (sptValue *)malloc(nthreads * ncols * sizeof(sptValue));
+            for(sptNnzIndex j=0; j < nthreads * ncols; ++j)
                 buffer_lambda[j] = 0.0;
         }
     }
@@ -417,17 +418,17 @@ int ptiMatrix2Norm(ptiMatrix * const A, ptiValue * const lambda)
     {
         int const tid = omp_get_thread_num();
         int const nthreads = omp_get_num_threads();
-        ptiValue * loc_lambda = buffer_lambda + tid * ncols;
+        sptValue * loc_lambda = buffer_lambda + tid * ncols;
 
         #pragma omp for
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptIndex j=0; j < ncols; ++j) {
                 loc_lambda[j] += vals[i*stride + j] * vals[i*stride + j];
             }
         }
 
         #pragma omp for
-        for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex j=0; j < ncols; ++j) {
             for(int i=0; i < nthreads; ++i) {
                 lambda[j] += buffer_lambda[i*ncols + j];
             }
@@ -436,32 +437,32 @@ int ptiMatrix2Norm(ptiMatrix * const A, ptiValue * const lambda)
 
 #else
 
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiIndex j=0; j < ncols; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptIndex j=0; j < ncols; ++j) {
             lambda[j] += vals[i*stride + j] * vals[i*stride + j];
         }
     }
 
 #endif
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for
 #endif
-        for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex j=0; j < ncols; ++j) {
             lambda[j] = sqrt(lambda[j]);
         }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for
 #endif
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptIndex j=0; j < ncols; ++j) {
                 vals[i*stride + j] /= lambda[j];
             }
         }
 
     
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     free(buffer_lambda);
 #endif
 
@@ -469,29 +470,29 @@ int ptiMatrix2Norm(ptiMatrix * const A, ptiValue * const lambda)
 }
 
 // Row-major
-int ptiMatrixMaxNorm(ptiMatrix * const A, ptiValue * const lambda)
+int sptMatrixMaxNorm(sptMatrix * const A, sptValue * const lambda)
 {
-    ptiIndex const nrows = A->nrows;
-    ptiIndex const ncols = A->ncols;
-    ptiIndex const stride = A->stride;
-    ptiValue * const vals = A->values;
-    ptiValue * buffer_lambda;
+    sptIndex const nrows = A->nrows;
+    sptIndex const ncols = A->ncols;
+    sptIndex const stride = A->stride;
+    sptValue * const vals = A->values;
+    sptValue * buffer_lambda;
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel for
 #endif
-    for(ptiIndex j=0; j < ncols; ++j) {
+    for(sptIndex j=0; j < ncols; ++j) {
         lambda[j] = 0.0;
     }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     #pragma omp parallel
     {
         int const nthreads = omp_get_num_threads();
         #pragma omp master
         {
-            buffer_lambda = (ptiValue *)malloc(nthreads * ncols * sizeof(ptiValue));
-            for(ptiNnzIndex j=0; j < nthreads * ncols; ++j)
+            buffer_lambda = (sptValue *)malloc(nthreads * ncols * sizeof(sptValue));
+            for(sptNnzIndex j=0; j < nthreads * ncols; ++j)
                 buffer_lambda[j] = 0.0;
         }
     }
@@ -500,18 +501,18 @@ int ptiMatrixMaxNorm(ptiMatrix * const A, ptiValue * const lambda)
     {
         int const tid = omp_get_thread_num();
         int const nthreads = omp_get_num_threads();
-        ptiValue * loc_lambda = buffer_lambda + tid * ncols;
+        sptValue * loc_lambda = buffer_lambda + tid * ncols;
 
         #pragma omp for
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptIndex j=0; j < ncols; ++j) {
                 if(vals[i*stride + j] > loc_lambda[j])
                     loc_lambda[j] = vals[i*stride + j];
             }
         }
 
         #pragma omp for
-        for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex j=0; j < ncols; ++j) {
             for(int i=0; i < nthreads; ++i) {
                 if(buffer_lambda[i*ncols + j] > lambda[j])
                     lambda[j] = buffer_lambda[i*ncols + j];
@@ -520,32 +521,32 @@ int ptiMatrixMaxNorm(ptiMatrix * const A, ptiValue * const lambda)
     }   /* end parallel pragma */
 
 #else
-    for(ptiIndex i=0; i < nrows; ++i) {
-        for(ptiIndex j=0; j < ncols; ++j) {
+    for(sptIndex i=0; i < nrows; ++i) {
+        for(sptIndex j=0; j < ncols; ++j) {
             if(vals[i*stride + j] > lambda[j])
                 lambda[j] = vals[i*stride + j];
         }
     }
 #endif
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for
 #endif
-        for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex j=0; j < ncols; ++j) {
             if(lambda[j] < 1)
                 lambda[j] = 1;
         }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
         #pragma omp parallel for
 #endif
-        for(ptiIndex i=0; i < nrows; ++i) {
-            for(ptiIndex j=0; j < ncols; ++j) {
+        for(sptIndex i=0; i < nrows; ++i) {
+            for(sptIndex j=0; j < ncols; ++j) {
                 vals[i*stride + j] /= lambda[j];
             }
         }
 
-#ifdef HIPARTI_USE_OPENMP
+#ifdef PARTI_USE_OPENMP
     free(buffer_lambda);
 #endif
 
@@ -554,16 +555,16 @@ int ptiMatrixMaxNorm(ptiMatrix * const A, ptiValue * const lambda)
 
 
 void GetFinalLambda(
-  ptiIndex const rank,
-  ptiIndex const nmodes,
-  ptiMatrix ** mats,
-  ptiValue * const lambda)
+  sptIndex const rank,
+  sptIndex const nmodes,
+  sptMatrix ** mats,
+  sptValue * const lambda)
 {
-  ptiValue * tmp_lambda =  (ptiValue *) malloc(rank * sizeof(*tmp_lambda));
+  sptValue * tmp_lambda =  (sptValue *) malloc(rank * sizeof(*tmp_lambda));
 
-  for(ptiIndex m=0; m < nmodes; ++m) {
-    ptiMatrix2Norm(mats[m], tmp_lambda);
-    for(ptiIndex r=0; r < rank; ++r) {
+  for(sptIndex m=0; m < nmodes; ++m) {   
+    sptMatrix2Norm(mats[m], tmp_lambda);
+    for(sptIndex r=0; r < rank; ++r) {
       lambda[r] *= tmp_lambda[r];
     }
   }

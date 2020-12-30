@@ -16,57 +16,57 @@
     If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <HiParTI.h>
+#include <ParTI.h>
 #include <stdlib.h>
 #include "sptensor.h"
 
-int ptiOmpSparseTensorMulMatrix(ptiSemiSparseTensor *Y, ptiSparseTensor * const X, ptiMatrix * const U, ptiIndex mode)
+int sptOmpSparseTensorMulMatrix(sptSemiSparseTensor *Y, sptSparseTensor * const X, sptMatrix * const U, sptIndex mode)
 {
     int result;
-    ptiIndex *ind_buf;
-    ptiIndex m;
-    ptiNnzIndexVector fiberidx;
+    sptIndex *ind_buf;
+    sptIndex m;
+    sptNnzIndexVector fiberidx;
     if(mode >= X->nmodes) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "OMP  SpTns * Mtx", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "OMP  SpTns * Mtx", "shape mismatch");
     }
     if(X->ndims[mode] != U->nrows) {
-        pti_CheckError(PTIERR_SHAPE_MISMATCH, "OMP  SpTns * Mtx", "shape mismatch");
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "OMP  SpTns * Mtx", "shape mismatch");
     }
-    ptiSparseTensorSortIndexAtMode(X, mode, 0);
+    sptSparseTensorSortIndexAtMode(X, mode, 0);
     // jli: try to avoid malloc in all operation functions.
     ind_buf = malloc(X->nmodes * sizeof *ind_buf);
-    pti_CheckOSError(!ind_buf, "OMP  SpTns * Mtx");
+    spt_CheckOSError(!ind_buf, "OMP  SpTns * Mtx");
     for(m = 0; m < X->nmodes; ++m) {
         ind_buf[m] = X->ndims[m];
     }
     ind_buf[mode] = U->ncols;
     // jli: use pre-processing to allocate Y size outside this function.
-    result = ptiNewSemiSparseTensor(Y, X->nmodes, mode, ind_buf);
+    result = sptNewSemiSparseTensor(Y, X->nmodes, mode, ind_buf);
     free(ind_buf);
-    pti_CheckError(result, "OMP  SpTns * Mtx", NULL);
-    ptiSemiSparseTensorSetIndices(Y, &fiberidx, X);
+    spt_CheckError(result, "OMP  SpTns * Mtx", NULL);
+    sptSemiSparseTensorSetIndices(Y, &fiberidx, X);
 
-    ptiTimer timer;
-    ptiNewTimer(&timer, 0);
-    ptiStartTimer(timer);
+    sptTimer timer;
+    sptNewTimer(&timer, 0);
+    sptStartTimer(timer);
 
     #pragma omp parallel for
-    for(ptiNnzIndex i = 0; i < Y->nnz; ++i) {
-        ptiNnzIndex inz_begin = fiberidx.data[i];
-        ptiNnzIndex inz_end = fiberidx.data[i+1];
+    for(sptNnzIndex i = 0; i < Y->nnz; ++i) {
+        sptNnzIndex inz_begin = fiberidx.data[i];
+        sptNnzIndex inz_end = fiberidx.data[i+1];
         // jli: exchange two loops
-        for(ptiNnzIndex j = inz_begin; j < inz_end; ++j) {
-            ptiIndex r = X->inds[mode].data[j];
-            for(ptiIndex k = 0; k < U->ncols; ++k) {
+        for(sptNnzIndex j = inz_begin; j < inz_end; ++j) {
+            sptIndex r = X->inds[mode].data[j];
+            for(sptIndex k = 0; k < U->ncols; ++k) {
                 Y->values.values[i*Y->stride + k] += X->values.data[j] * U->values[r*U->stride + k];
             }
         }
     }
 
-    ptiStopTimer(timer);
-    ptiPrintElapsedTime(timer, "OMP  SpTns * Mtx");
-    ptiFreeTimer(timer);
+    sptStopTimer(timer);
+    sptPrintElapsedTime(timer, "OMP  SpTns * Mtx");
+    sptFreeTimer(timer);
 
-    ptiFreeNnzIndexVector(&fiberidx);
+    sptFreeNnzIndexVector(&fiberidx);
     return 0;
 }
