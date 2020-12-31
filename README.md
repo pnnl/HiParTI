@@ -59,9 +59,7 @@ You can execute a command like "export EXPERIMENT_MODES=x" to set up the environ
 2. On a server with Intel Optane DC PMM:
 * `./sparta/run_optane/test_run.sh`
     
-# More Support
-
-## Tensor Contraction Parameters:
+# Tensor Contraction Parameters:
 You can check the parameters options with `path/to/sparta/build/ttt --help`
 ```
 Options: -X FIRST INPUT TENSOR
@@ -73,26 +71,6 @@ Options: -X FIRST INPUT TENSOR
          -t NTHREADS, --nt=NT (Optinal)
          --help
 ```
-
-## ITensor Results Generation:
-
-We have generated the sparse tensors and performance from ITensor library and stored them in `itensor/results`. If you want to recollect all these tensors, you can use the following steps.
-
-1. `git clone https://gitlab.com/jiawenliu64/itensor` (forked from [ITensor repo](https://github.com/ITensor/ITensor), also provided in the "Artifact download URL" in the PPoPP AE submission.)
-2. `export ITENSOR_DIR=path/to/itensor`
-3. `mkdir path/to/itensor_results` & `export ITENSOR_RESULTS=path/to/itensor_results`
-4. `cd $ITENSOR_DIR` & `run.sh`
-5. `cd $ITENSOR_DIR/hubbard` & `OMP_NUM_THREADS=12 ./main 'parity' 1`. After the execution, all results are stored in `$ITENSOR_RESULTS`. The result (execution time) is included in the second line of each generated file (e.g., tensor_2137.txt).
-
-* If you also want to convert the data to the .bin format as they are shown in `path/to/itensor/results`, you can use the following steps to process data using SPLATT, another sparse tensor library. 
-
-1. `git clone https://github.com/ShadenSmith/splatt`
-2. `./configure --prefix=SPLATT_DIR` & `make` & `make install`
-3. Replace all `Block` in tensor A to `A-Block`. For example, in vim, you can execute `x,ys/Block/A-Block/g` to replace from line `x` to line `y`.
-4. Replace all `Block` in tensor B to `B-Block`. For example, in vim, you can execute `x,ys/Block/B-Block/g` to replace from line `x` to line `y`.
-5. `python path/to/sparta/output_scripts/gen_tns_itensor.py path/to/itensor_results/tensor_x.txt 0.00000001` for data tensor_x.
-6. `path/to/splatt/build/Linux-x86_64/bin/splatt convert -t bin path/to/itensor_results/tensor_x_A.tns path/to/itensor_results/tensor_x_A.bin` for A in x.
-7. `path/to/splatt/build/Linux-x86_64/bin/splatt convert -t bin path/to/itensor_results/tensor_x_B.tns path/to/itensor_results/tensor_x_B.bin` for B in x.
 
 # Contributiors
 
