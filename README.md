@@ -33,9 +33,7 @@ You may use the following steps to install the required libraries:
 ## Download
 1. `git clone https://gitlab.com/jiawenliu64/sparta` (Sparta)
 2. `git clone https://gitlab.com/jiawenliu64/ial` (IAL)
-3. `git clone https://gitlab.com/jiawenliu64/tensors` 
-Contains 1. Tensor datasets; 2. The raw data of all experiments in the paper (named "Collected_Results.xlsx") for comparison.
-(The three software above is also provided in the "Artifact download URL" in the PPoPP AE submission)
+3. `git clone https://gitlab.com/jiawenliu64/tensors` (Datasets)
 
 ## Build
 * `cd sparta` & `./build.sh`
