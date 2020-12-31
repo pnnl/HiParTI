@@ -1,7 +1,7 @@
 HiParTI
 ------
 
-A Hierarchical Parallel Tensor Infrastructure (HiParTI), is to support fast essential sparse tensor operations and tensor decompositions on multicore CPU and GPU architectures. These basic tensor operations are critical to the overall performance of tensor analysis algorithms (such as tensor decomposition). HiParTI is based on [[ParTI!]](https://github.com/hpcgarage/ParTI) library developed at GaTech. 
+A Hierarchical Parallel Tensor Infrastructure (HiParTI), is to support fast essential sparse tensor operations and tensor decompositions on multicore CPU and GPU architectures. These basic tensor operations are critical to the overall performance of tensor analysis algorithms (such as tensor decomposition). HiParTI is based on [ParTI!](https://github.com/hpcgarage/ParTI) library developed at GaTech. 
 
 
 # Contents:
