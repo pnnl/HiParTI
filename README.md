@@ -59,7 +59,9 @@ You can execute a command like "export EXPERIMENT_MODES=x" to set up the environ
 2. On a server with Intel Optane DC PMM:
 * `./sparta/run_optane/test_run.sh`
     
-# Tensor Contraction Parameters:
+# More Support
+
+## Tensor Contraction Parameters:
 You can check the parameters options with `path/to/sparta/build/ttt --help`
 ```
 Options: -X FIRST INPUT TENSOR
@@ -75,5 +77,6 @@ Options: -X FIRST INPUT TENSOR
 # Contributiors
 
 * Jiawen Liu (Contact: jliu265@ucmerced.edu)
+* Dong Li (Contact: dli35@ucmerced.edu)
 * Jiajia Li (Contact: Jiajia.Li@pnnl.gov)
 
