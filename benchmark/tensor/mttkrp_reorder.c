@@ -43,7 +43,8 @@ void print_usage(char ** argv) {
 }
 
 int main(int argc, char ** argv) {
-    FILE *fi = NULL, *fo = NULL;
+    char ifname[1000];
+    FILE *fo = NULL;
     ptiSparseTensor X;
     ptiMatrix ** U;
     ptiMatrix ** copy_U;
@@ -108,8 +109,7 @@ int main(int argc, char ** argv) {
         }
         switch(c) {
         case 'i':
-            fi = fopen(optarg, "r");
-            ptiAssert(fi != NULL);
+            strcpy(ifname, optarg);
             printf("input file: %s\n", optarg); fflush(stdout);
             break;
         case 'o':
@@ -166,8 +166,8 @@ int main(int argc, char ** argv) {
         printf("niters_renum: %d\n\n", niters_renum);
 
     /* Load a sparse tensor from file as it is */
-    ptiAssert(ptiLoadSparseTensor(&X, 1, fi) == 0);
-    fclose(fi);
+    ptiAssert(ptiLoadSparseTensor(&X, 1, ifname) == 0);
+    ptiSparseTensorStatus(&X, stdout);
     // ptiAssert(ptiDumpSparseTensor(&X, 0, stdout) == 0);
 
     /* Renumber the input tensor */

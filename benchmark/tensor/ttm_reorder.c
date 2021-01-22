@@ -18,11 +18,26 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <getopt.h>
 #include <HiParTI.h>
 #include "../src/sptensor/sptensor.h"
 
+void print_usage(char ** argv) {
+    printf("Usage: %s [options] \n\n", argv[0]);
+    printf("Options: -i INPUT, --input=INPUT\n");
+    printf("         -o OUTPUT, --output=OUTPUT\n");
+    printf("         -m MODE, --mode=MODE (default -1: loop all modes)\n");
+    printf("         -e RENUMBER, --renumber=RENUMBER\n");
+    printf("         -n NITERS_RENUM\n");
+    printf("         -d DEV_ID, --cuda-dev-id=DEV_ID\n");
+    printf("         -r RANK\n");
+    printf("         --help\n");
+    printf("\n");
+}
+
 int main(int argc, char const *argv[]) {
-    FILE *fX, *fY;
+    char ifname[1000];
+    FILE *fo = NULL;
     ptiSparseTensor X, spY;
     ptiSemiSparseTensor Y;
     ptiMatrix U;
@@ -30,39 +45,84 @@ int main(int argc, char const *argv[]) {
     ptiIndex R = 16;
     int dev_id = -2;
     int niters = 5;
-
-    if(argc < 5) {
-        printf("Usage: %s X mode renumber [dev_id, R, Y]\n\n", argv[0]);
-        return 1;
-    }
-
-    fX = fopen(argv[1], "r");
-    ptiAssert(fX != NULL);
-    ptiAssert(ptiLoadSparseTensor(&X, 1, fX) == 0);
-    fclose(fX);
-
-    sscanf(argv[2], "%"HIPARTI_SCN_INDEX, &mode);
     int renumber = 0;
-    int niters_renum = 5;
-    ptiElementIndex sb_bits = 7;
     /* renumber:
      * = 0 : no renumbering.
      * = 1 : renumber with Lexi-order
      * = 2 : renumber with BFS-like
      * = 3 : randomly renumbering, specify niters_renum.
      */
-    sscanf(argv[3], "%d", &renumber);
+    int niters_renum = 5;
+
+    if(argc <= 3) { // #Required arguments
+        print_usage(argv);
+        exit(1);
+    }
+
+    static struct option long_options[] = {
+        {"input", required_argument, 0, 'i'},
+        {"mode", required_argument, 0, 'm'},
+        {"output", optional_argument, 0, 'o'},
+        {"renumber", optional_argument, 0, 'e'},
+        {"niters-renum", optional_argument, 0, 'n'},
+        {"cuda-dev-id", optional_argument, 0, 'd'},
+        {"rank", optional_argument, 0, 'r'},
+        {"help", no_argument, 0, 0},
+        {0, 0, 0, 0}
+    };
+
+    int c;
+    for(;;) {
+        int option_index = 0;
+        c = getopt_long(argc, argv, "i:m:o:e:d:r:n:", long_options, &option_index);
+        if(c == -1) {
+            break;
+        }
+        switch(c) {
+        case 'i':
+            strcpy(ifname, optarg);
+            printf("input file: %s\n", optarg); fflush(stdout);
+            break;
+        case 'o':
+            fo = fopen(optarg, "aw");
+            ptiAssert(fo != NULL);
+            printf("output file: %s\n", optarg); fflush(stdout);
+            break;
+        case 'm':
+            sscanf(optarg, "%"HIPARTI_SCN_INDEX, &mode);
+            break;
+        case 'e':
+            sscanf(optarg, "%d", &renumber);
+            break;
+        case 'n':
+            sscanf(optarg, "%d", &niters_renum);
+            break;
+        case 'd':
+            sscanf(optarg, "%d", &dev_id);
+            break;
+        case 'r':
+            sscanf(optarg, "%u"HIPARTI_SCN_INDEX, &R);
+            break;
+        case '?':   /* invalid option */
+        case 'h':
+        default:
+            print_usage(argv);
+            exit(1);
+        }
+    }
+    printf("mode: %"HIPARTI_PRI_INDEX "\n", mode);
+    printf("dev_id: %d\n", dev_id);
     printf("renumber: %d\n", renumber);
     if (renumber == 1)
-        printf("niters_renum: %d\n\n", niters_renum);   
+        printf("niters_renum: %d\n\n", niters_renum);
 
-    if(argc > 4) {
-        sscanf(argv[4], "%d", &dev_id);
-    }
-    if(argc > 5) {
-        sscanf(argv[5], "%"HIPARTI_SCN_INDEX, &R);
-    }
+    /* Load a sparse tensor from file as it is */
+    ptiAssert(ptiLoadSparseTensor(&X, 1, ifname) == 0);
+    ptiSparseTensorStatus(&X, stdout);
+    // ptiAssert(ptiDumpSparseTensor(&X, 0, stdout) == 0);
 
+
+    ptiElementIndex sb_bits = 7;
     /* Renumber the input tensor */
     ptiIndex ** map_inds;
     if (renumber > 0) {
@@ -117,6 +177,11 @@ int main(int argc, char const *argv[]) {
     ptiAssert(ptiConstantMatrix(&U, 1) == 0);
     // ptiAssert(ptiRandomizeMatrix(&U) == 0);
 
+    if (renumber > 0) {
+        ptiMatrixInverseShuffleIndices(&U, map_inds[mode]);
+        // ptiAssert(ptiDumpMatrix(U[nmodes], stdout) == 0);
+    }
+
     /* For warm-up caches, timing not included */
     if(dev_id == -2) {
         ptiAssert(ptiSparseTensorMulMatrix(&Y, &X, &U, mode) == 0);
@@ -134,13 +199,11 @@ int main(int argc, char const *argv[]) {
     }
 
 
-    if(argc > 7) {
+    if(fo != NULL) {
         ptiAssert(ptiSemiSparseTensorToSparseTensor(&spY, &Y, 1e-9) == 0);
 
-        fY = fopen(argv[7], "w");
-        ptiAssert(fY != NULL);
-        ptiAssert(ptiDumpSparseTensor(&spY, 0, fY) == 0);
-        fclose(fY);
+        ptiAssert(ptiDumpSparseTensor(&spY, 0, fo) == 0);
+        fclose(fo);
 
         ptiFreeSparseTensor(&spY);
     }
