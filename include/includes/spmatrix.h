@@ -79,7 +79,7 @@ void ptiSparseMatrixSortIndexRowBlock(
     ptiNnzIndex begin,
     ptiNnzIndex end,
     ptiElementIndex sk_bits);
-int pti_SparseTensorCompareIndicesSingleMode(ptiSparseMatrix * const mtx1, ptiNnzIndex loc1, ptiSparseMatrix * const mtx2, ptiNnzIndex loc2, ptiIndex const mode);
+int pti_SparseMatrixCompareIndicesSingleMode(ptiSparseMatrix * const mtx1, ptiNnzIndex loc1, ptiSparseMatrix * const mtx2, ptiNnzIndex loc2, ptiIndex const mode);
 
 /* HiCOO operations */
 int ptiSparseMatrixMulVectorHiCOO(ptiValueVector * y, const ptiSparseMatrixHiCOO *himtx, ptiValueVector * x);

@@ -107,7 +107,7 @@ int pti_SparseMatrixCompareIndicesMorton2D(
 }
 
 
-int pti_SparseTensorCompareIndicesSingleMode(ptiSparseMatrix * const mtx1, ptiNnzIndex loc1, ptiSparseMatrix * const mtx2, ptiNnzIndex loc2, ptiIndex const mode)
+int pti_SparseMatrixCompareIndicesSingleMode(ptiSparseMatrix * const mtx1, ptiNnzIndex loc1, ptiSparseMatrix * const mtx2, ptiNnzIndex loc2, ptiIndex const mode)
 {
     ptiIndex eleind1, eleind2;
     if (mode == 0) {
@@ -117,6 +117,7 @@ int pti_SparseTensorCompareIndicesSingleMode(ptiSparseMatrix * const mtx1, ptiNn
         eleind1 = mtx1->colind.data[loc1];
         eleind2 = mtx2->colind.data[loc2];
     }
+    // printf("eleind1: %u (loc: %lu), eleind2: %u (loc: %lu)\n", eleind1, loc1, eleind2, loc2); fflush(stdout);
     if(eleind1 < eleind2) {
         return -1;
     } else if(eleind1 > eleind2) {
@@ -201,27 +202,31 @@ static void pti_QuickSortIndexMorton2D(ptiSparseMatrix *mtx, ptiNnzIndex l, ptiN
 
 static void pti_QuickSortIndexSingleMode(ptiSparseMatrix *mtx, ptiNnzIndex l, ptiNnzIndex r, ptiIndex mode)
 {
+    // printf("l: %lu, r: %lu.\n", l, r); fflush(stdout);
     ptiNnzIndex i, j, p;
     if(r-l < 2) {
         return;
     }
     p = (l+r) / 2;
     for(i = l, j = r-1; ; ++i, --j) {
-        while(pti_SparseTensorCompareIndicesSingleMode(mtx, i, mtx, p, mode) < 0) {
+        // printf("i: %lu, j: %lu.\n", i, j); fflush(stdout);
+        while(pti_SparseMatrixCompareIndicesSingleMode(mtx, i, mtx, p, mode) < 0) {
             ++i;
         }
-        while(pti_SparseTensorCompareIndicesSingleMode(mtx, p, mtx, j, mode) < 0) {
+        while(pti_SparseMatrixCompareIndicesSingleMode(mtx, p, mtx, j, mode) < 0) {
             --j;
         }
         if(i >= j) {
             break;
         }
+        // printf("new i: %lu (%u, %u), j: %lu (%u, %u).\n", i, mtx->rowind.data[i], mtx->colind.data[i], j, mtx->rowind.data[j], mtx->colind.data[j]); fflush(stdout);
         pti_SwapValuesMat(mtx, i, j);
         if(i == p) {
             p = j;
         } else if(j == p) {
             p = i;
         }
+        // printf("p: %lu.\n", p); fflush(stdout);
     }
     #pragma omp task firstprivate(l,i) shared(mtx, mode)
     {

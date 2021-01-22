@@ -23,8 +23,8 @@
 int main(int argc, char *argv[]) {
     FILE *fi = NULL, *fo = NULL;
     ptiSparseMatrix mtx;
-    int relabel = 0;
-    int niters_renum = 1;
+    int relabel = 1 ;
+    int niters_renum = 5;
     /* relabel:
      * = 0 : no relabeling.
      * = 1 : relabel with Lexi-order, specify niters_renum.
@@ -73,13 +73,14 @@ int main(int argc, char *argv[]) {
         printf("Usage: %s\n", argv[0]);
         printf("Options: -i INPUT, --input=INPUT\n");
         printf("         -o OUTPUT, --output=OUTPUT\n");
-        printf("         -r RELABEL\n");
+        printf("         -r RELABEL (1: Lexi-order (default); 2: random ordering)\n");
         printf("\n");
         return -1;
     }
 
     ptiAssert(ptiLoadSparseMatrix(&mtx, 1, fi) == 0);
     fclose(fi);
+    ptiSparseMatrixStatus(&mtx, stdout);
 
     /* Relabel the input matrix */
     ptiIndex nmodes = 2; // for matrices

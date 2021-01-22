@@ -331,11 +331,11 @@ static void ptiLexiOrderPerMode(ptiSparseMatrix * mtx, ptiIndex mode, ptiIndex *
     ptiIndexVector * mode_ind;
     if (mode == 0) {
         mode_dim = mtx->nrows;
-        mode_ind = &mtx->rowind;
+        mode_ind = &(mtx->rowind);
     }
     else if (mode == 1) {
         mode_dim = mtx->ncols;
-        mode_ind = &mtx->colind;
+        mode_ind = &(mtx->colind);
     }
 
     ptiNnzIndex * rowPtrs = NULL;
@@ -354,8 +354,7 @@ static void ptiLexiOrderPerMode(ptiSparseMatrix * mtx, ptiIndex mode, ptiIndex *
     else if (mode == 1) sort_mode = 0;
     ptiSparseMatrixSortIndexSingleMode(mtx, 1, sort_mode, tk);
     t1 = u_seconds()-t0;
-    printf("mode %u, sort time %.2f\n", mode, t1);
-    // ptiAssert(ptiDumpSparseMatrix(mtx, 0, stdout) == 0);
+    printf("mode %u, sort time %.2f\n", mode, t1); fflush(stdout);
 
     /* we matricize this (others x thisDim), whose columns will be renumbered */
     /* on the matrix all arrays are from 1, and all indices are from 1. */
@@ -378,7 +377,7 @@ static void ptiLexiOrderPerMode(ptiSparseMatrix * mtx, ptiIndex mode, ptiIndex *
     t0 = u_seconds();
     for (z = 1; z < nnz; z++)
     {
-        int cmp_res = pti_SparseTensorCompareIndicesSingleMode(mtx, z, mtx, z-1, sort_mode);
+        int cmp_res = pti_SparseMatrixCompareIndicesSingleMode(mtx, z, mtx, z-1, sort_mode);
         if(cmp_res != 0)
             rowPtrs[atRowPlus1++] = mtrxNnz; /* close the previous row and start a new one. */
         
@@ -387,7 +386,7 @@ static void ptiLexiOrderPerMode(ptiSparseMatrix * mtx, ptiIndex mode, ptiIndex *
     rowPtrs[atRowPlus1] = mtrxNnz;
     mtxNrows = atRowPlus1-1;
     t1 =u_seconds()-t0;
-    printf("mode %u, create time %.2f\n", mode, t1);
+    printf("mode %u, create time %.2f\n", mode, t1); fflush(stdout);
     
     rowPtrs = realloc(rowPtrs, (sizeof(ptiNnzIndex) * (mtxNrows + 2)));
     cprm = (ptiIndex *) malloc(sizeof(ptiIndex) * (mode_dim + 1));
@@ -402,7 +401,7 @@ static void ptiLexiOrderPerMode(ptiSparseMatrix * mtx, ptiIndex mode, ptiIndex *
     t0 = u_seconds();
     lexOrderThem(mtxNrows, mode_dim, rowPtrs, colIds, cprm, tk);
     t1 =u_seconds()-t0;
-    printf("mode %u, lexorder time %.2f\n", mode, t1);
+    printf("mode %u, lexorder time %.2f\n", mode, t1); fflush(stdout);
     // printf("cprm: \n");
     // ptiDumpIndexArray(cprm, mode_dim + 1, stdout);
 

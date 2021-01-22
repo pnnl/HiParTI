@@ -108,6 +108,12 @@ int ptiLoadSparseMatrix(ptiSparseMatrix *mtx, ptiIndex start_index, FILE *fid)
          free(mtx->rowind.data); free(mtx->colind.data); free(mtx->values.data);
          mtx->rowind.data = new_I;  mtx->colind.data = new_J; mtx->values.data = new_V;      
          mtx->nnz = true_nonzeros;
+         mtx->rowind.len = true_nonzeros;
+         mtx->rowind.cap = true_nonzeros;
+         mtx->colind.len = true_nonzeros;
+         mtx->colind.cap = true_nonzeros;
+         mtx->values.len = true_nonzeros;
+         mtx->values.cap = true_nonzeros;
     } //end symmetric case
 
     return 0;  

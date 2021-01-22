@@ -37,7 +37,8 @@ void print_usage(char ** argv) {
 }
 
 int main(int argc, char ** argv) {
-    FILE *fi = NULL, *fo = NULL;
+    char ifname[1000];
+    FILE *fo = NULL;
     ptiSparseTensor X;
 
     int nthreads;
@@ -54,7 +55,7 @@ int main(int argc, char ** argv) {
     ptiTimer timer;
     ptiNewTimer(&timer, 0);
 
-    if(argc <= 3) { // #Required arguments
+    if(argc < 3) { // #Required arguments
         print_usage(argv);
         exit(1);
     }
@@ -79,8 +80,7 @@ int main(int argc, char ** argv) {
         }
         switch(c) {
         case 'i':
-            fi = fopen(optarg, "r");
-            ptiAssert(fi != NULL);
+            strcpy(ifname, optarg);
             printf("input file: %s\n", optarg); fflush(stdout);
             break;
         case 'o':
@@ -117,8 +117,7 @@ int main(int argc, char ** argv) {
         printf("niters_renum: %d\n\n", niters_renum);
 
     /* Load a sparse tensor from file as it is */
-    ptiAssert(ptiLoadSparseTensor(&X, 1, fi) == 0);
-    fclose(fi);
+    ptiAssert(ptiLoadSparseTensor(&X, 1, ifname) == 0);
     ptiSparseTensorStatus(&X, stdout);
     // ptiAssert(ptiDumpSparseTensor(&X, 0, stdout) == 0);
 
@@ -126,10 +125,10 @@ int main(int argc, char ** argv) {
     ptiIndex ** map_inds;
     
     map_inds = (ptiIndex **)malloc(X.nmodes * sizeof *map_inds);
-    pti_CheckOSError(!map_inds, "MTTKRP HiCOO");
+    pti_CheckOSError(!map_inds, "REORDER");
     for(ptiIndex m = 0; m < X.nmodes; ++m) {
         map_inds[m] = (ptiIndex *)malloc(X.ndims[m] * sizeof (ptiIndex));
-        pti_CheckError(!map_inds[m], "MTTKRP HiCOO", NULL);
+        pti_CheckError(!map_inds[m], "REORDER", NULL);
         for(ptiIndex i = 0; i < X.ndims[m]; ++i)
             map_inds[m][i] = i;
     }
