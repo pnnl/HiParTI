@@ -27,11 +27,11 @@ void print_usage(char ** argv) {
     printf("Usage: %s [options] \n\n", argv[0]);
     printf("Options: -i INPUT, --input=INPUT\n");
     printf("         -o OUTPUT, --output=OUTPUT\n");
-    printf("         -b BLOCKSIZE (bits), --blocksize=BLOCKSIZE (bits)\n");
-    printf("         -e RENUMBER, --renumber=RENUMBER\n");
-    printf("         -n NITERS_RENUM\n");
-    printf("         -p IMPL_NUM, --impl-num=IMPL_NUM\n");
-    printf("         -t NTHREADS, --nthreads=NTHREADS\n");
+    printf("         -e RENUMBER (1: Lexi-order, default; 3: random reordering)\n");
+    printf("         -n NITERS_RENUM (an integer in [3,10]. 5 by default)\n");
+    printf("         -p IMPL_NUM (1: default)\n");
+    printf("         -b BLOCKSIZE (bits) (block size in bits, 7 by default\n");
+    printf("         -t NTHREADS (1: default)\n");
     printf("         --help\n");
     printf("\n");
 }
@@ -41,10 +41,10 @@ int main(int argc, char ** argv) {
     FILE *fo = NULL;
     ptiSparseTensor X;
 
-    int nthreads;
-    int impl_num = 0;
+    int nthreads = 1;
+    int impl_num = 1;
     int renumber = 1;
-    int niters_renum = 3;
+    int niters_renum = 5;
     /* renumber:
      * = 0 : no renumbering.
      * = 1 : renumber with Lexi-order, specify niters_renum.
