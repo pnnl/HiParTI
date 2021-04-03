@@ -38,10 +38,13 @@ void print_usage(char ** argv) {
 int main(int argc, char *argv[]) {
 
     char Xfname[1000], Yfname[1000];
-    FILE *fZ = NULL;
+    char Xfname2[1000], Yfname2[1000];
+    FILE *fZ = NULL, *fZ2 = NULL;
     sptSparseTensor X, Y, Z;
+    sptSparseTensor X2, Y2, Z2; // for 2nd contraction
     sptIndex * cmodes_X = NULL, * cmodes_Y = NULL;
-    sptIndex num_cmodes = 1;
+    sptIndex * cmodes_X2 = NULL, * cmodes_Y2 = NULL;  // for 2nd contraction
+    sptIndex num_cmodes = 1, num_cmodes_2 = 1;
     int cuda_dev_id = -2;
     int output_sorting=1;
     int niters = 5;
@@ -78,23 +81,34 @@ int main(int argc, char *argv[]) {
         switch(c) {
         case 'X':
             strcpy(Xfname, optarg);
-            printf("1st tensor file: %s\n", Xfname);
+            sscanf(argv[optind], "%s", Xfname2); 
+            printf("1st TC: 1st tensor file: %s\n", Xfname);
+            printf("1st TC: 2nd tensor file: %s\n", Xfname2);
             break;
         case 'Y':
             strcpy(Yfname, optarg);
-            printf("2nd tensor file: %s\n", Yfname);
+            sscanf(argv[optind], "%s", Yfname2); 
+            printf("2nd TC: 2nd tensor file: %s\n", Yfname);
+            printf("2nd TC: 2nd tensor file: %s\n", Yfname2);
             break;
         case 'Z':
             fZ = fopen(optarg, "w");
             sptAssert(fZ != NULL);
-            printf("output tensor file: %s\n", optarg);
+            printf("1st TC: output tensor file: %s\n", optarg);
+            fZ2 = fopen(argv[optind], "w");
+            sptAssert(fZ2 != NULL);
+            printf("2nd TC: output tensor file: %s\n", argv[optind]);
             break;
         case 'm':
             sscanf(optarg, "%"PARTI_SCN_INDEX, &num_cmodes);
             cmodes_X = (sptIndex*)malloc(num_cmodes * sizeof(sptIndex));
             cmodes_Y = (sptIndex*)malloc(num_cmodes * sizeof(sptIndex));
             sptAssert(cmodes_X != NULL && cmodes_Y != NULL);
-            printf("%s\n", optarg);
+            sscanf(argv[optind], "%"PARTI_SCN_INDEX, &num_cmodes_2);
+            cmodes_X2 = (sptIndex*)malloc(num_cmodes_2 * sizeof(sptIndex));
+            cmodes_Y2 = (sptIndex*)malloc(num_cmodes_2 * sizeof(sptIndex));
+            sptAssert(cmodes_X2 != NULL && cmodes_Y2 != NULL);
+            printf("num_cmodes: %u, num_cmodes_2: %u\n", num_cmodes, num_cmodes_2);
             break;
         case 'x':
             for(sptIndex i = 0; i < num_cmodes; ++ i) {
@@ -102,7 +116,14 @@ int main(int argc, char *argv[]) {
                 sscanf(argv[optind - 1], "%u", &(cmodes_X[i])); 
                 ++ optind;
             }
+            sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
+            for(sptIndex i = 0; i < num_cmodes_2; ++ i) {
+                sscanf(argv[optind - 1], "%u", &(cmodes_X2[i])); 
+                ++ optind;
+            }
+            sptDumpIndexArray(cmodes_X2, num_cmodes_2, stdout);
             optind -= num_cmodes;
+            optind -= num_cmodes_2;
             break;
         case 'y':
             for(sptIndex i = 0; i < num_cmodes; ++ i) {
@@ -110,7 +131,14 @@ int main(int argc, char *argv[]) {
                 sscanf(argv[optind - 1], "%u", &(cmodes_Y[i])); 
                 ++ optind;
             }
+            sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
+            for(sptIndex i = 0; i < num_cmodes_2; ++ i) {
+                sscanf(argv[optind - 1], "%u", &(cmodes_Y2[i])); 
+                ++ optind;
+            }
+            sptDumpIndexArray(cmodes_Y2, num_cmodes_2, stdout);
             optind -= num_cmodes;
+            optind -= num_cmodes_2;
             break;
         case 'o':
             sscanf(optarg, "%d", &output_sorting);
@@ -132,27 +160,30 @@ int main(int argc, char *argv[]) {
         }
     }
     omp_set_num_threads(nt);
-    printf("#Contraction modes: %"PARTI_PRI_INDEX"\n", num_cmodes);
+    printf("1st TC: #Contraction modes: %"PARTI_PRI_INDEX"\n", num_cmodes);
+    printf("2nd TC: #Contraction modes: %"PARTI_PRI_INDEX"\n", num_cmodes_2);
     //sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
     //sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
 
-    int experiment_modes;
-    sscanf(getenv("EXPERIMENT_MODES"), "%d", &experiment_modes);
 
-    if (experiment_modes <= 3) {
-        sptAssert(sptLoadSparseTensor(&X, 1, Xfname) == 0);
-        sptSparseTensorStatus(&X, stdout);
+    sptAssert(sptLoadSparseTensor(&X, 1, Xfname) == 0);
+    sptSparseTensorStatus(&X, stdout);
+    sptAssert(sptLoadSparseTensor(&Y, 1, Yfname) == 0);
+    sptSparseTensorStatus(&Y, stdout);
 
-        sptAssert(sptLoadSparseTensor(&Y, 1, Yfname) == 0);
-        sptSparseTensorStatus(&Y, stdout);   
-        //printf("Original Tensors: \n"); 
-        //sptAssert(sptDumpSparseTensor(&X, 0, stdout) == 0);
-        //sptAssert(sptDumpSparseTensor(&Y, 0, stdout) == 0);   
-    }
+    sptAssert(sptLoadSparseTensor(&X2, 1, Xfname2) == 0);
+    sptSparseTensorStatus(&X2, stdout);
+    sptAssert(sptLoadSparseTensor(&Y2, 1, Yfname2) == 0);
+    sptSparseTensorStatus(&Y2, stdout);   
+    // printf("Original Tensors: \n"); 
+    // sptAssert(sptDumpSparseTensor(&X, 0, stdout) == 0);
+    // sptAssert(sptDumpSparseTensor(&Y, 0, stdout) == 0);   
+    // sptAssert(sptDumpSparseTensor(&X2, 0, stdout) == 0);
+    // sptAssert(sptDumpSparseTensor(&Y2, 0, stdout) == 0);   
 
     /* For warm-up caches, timing not included */
     if(cuda_dev_id == -2) {     
-            sptAssert(sptSparseTensorMulTensor(&Z, &X, &Y, num_cmodes, cmodes_X, cmodes_Y, nt, output_sorting, placement) == 0);
+        sptAssert(sptSparseTensorMulTensor2TCs(&Z, &X, &Y, num_cmodes, cmodes_X, cmodes_Y, &Z2, &X2, &Y2, num_cmodes_2, cmodes_X2, cmodes_Y2, nt, output_sorting, placement) == 0);
     } else if(cuda_dev_id == -1) {
         // sptAssert(sptOmpSparseTensorMulMatrix(&Y, &X, &U, mode) == 0);
     }
@@ -167,7 +198,7 @@ int main(int argc, char *argv[]) {
     // }
 
     sptSparseTensorStatus(&Z, stdout);
-    //sptAssert(sptDumpSparseTensor(&Z, 0, stdout) == 0);
+    // sptAssert(sptDumpSparseTensor(&Z, 0, stdout) == 0);
 
     if(fZ != NULL) {
         sptSparseTensorSortIndex(&Z, 1, 1);
@@ -177,7 +208,10 @@ int main(int argc, char *argv[]) {
 
     sptFreeSparseTensor(&Y);
     sptFreeSparseTensor(&X);
+    sptFreeSparseTensor(&Y2);
+    sptFreeSparseTensor(&X2);
     sptFreeSparseTensor(&Z);
+    // sptFreeSparseTensor(&Z2);
 
     return 0;
 }

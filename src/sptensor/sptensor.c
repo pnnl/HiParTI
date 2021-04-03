@@ -76,7 +76,7 @@ int sptNewSparseTensorNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex
 }
 
 // Allocate memory with size and numa
-int sptNewSparseTensorWithSizeNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], int numa_node, unsigned long long size) {
+int sptNewSparseTensorWithSizeNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], unsigned long long size, int numa_node) {
     sptIndex i;
     int result;
     tsr->nmodes = nmodes;

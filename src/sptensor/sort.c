@@ -33,6 +33,7 @@ static void spt_QuickSortIndexMorton4D(sptSparseTensor *tsr, sptNnzIndex l, sptN
 static void spt_QuickSortIndexSingleMode(sptSparseTensor *tsr, sptNnzIndex l, sptNnzIndex r, sptIndex mode);
 static void spt_QuickSortIndexExceptSingleMode(sptSparseTensor *tsr, sptNnzIndex l, sptNnzIndex r, sptIndex * mode_order, sptIndex * eleinds_buf);
 static void spt_QuickSortIndexExceptSingleModeRowBlock(sptSparseTensor *tsr, sptNnzIndex l, sptNnzIndex r, sptIndex * mode_order, sptElementIndex sk_bits);
+static void spt_QuickSortBucketS(bucket_s *buckets, sptNnzIndex l, sptNnzIndex r);
 
 static const uint32_t MASKS[] = {0x55555555, 0x33333333, 0x0F0F0F0F, 0x00FF00FF};
 static const uint32_t SHIFTS[] = {1, 2, 4, 8};
@@ -160,6 +161,12 @@ void spt_SwapValues(sptSparseTensor *tsr, sptNnzIndex ind1, sptNnzIndex ind2) {
     sptValue val1 = tsr->values.data[ind1];
     tsr->values.data[ind1] = tsr->values.data[ind2];
     tsr->values.data[ind2] = val1;
+}
+
+void spt_SwapBucketS(bucket_s *tsr, sptNnzIndex ind1, sptNnzIndex ind2) {
+    bucket_s val1 = tsr[ind1];
+    tsr[ind1] = tsr[ind2];
+    tsr[ind2] = val1;
 }
 
 
@@ -657,6 +664,17 @@ void sptSparseTensorSortIndex(sptSparseTensor *tsr, int force, int tk)
             }
         }
     }
+}
+
+
+void sptQuickSortBucketS(bucket_s *buckets, sptNnzIndex l, sptNnzIndex r, int tk){
+    #pragma omp parallel num_threads(tk)
+        {    
+            #pragma omp single nowait
+            {
+                spt_QuickSortBucketS(buckets, l, r);
+            }
+        }
 }
 
 /**
@@ -1685,6 +1703,39 @@ static void spt_QuickSortIndexCmode(sptSparseTensor *tsr, sptNnzIndex l, sptNnzI
 	{ spt_QuickSortIndexCmode(tsr, i, r, cmode_start, num_cmode); }	
 }
 
+
+static void spt_QuickSortBucketS(bucket_s *buckets, sptNnzIndex l, sptNnzIndex r) 
+{
+    sptNnzIndex i, j, p;
+    if(r-l < 2) {
+        return;
+    }
+    p = (l+r) / 2;
+    for(i = l, j = r-1; ; ++i, --j) {
+        while(buckets[i].frequency > buckets[p].frequency) {
+            ++i;
+        }
+        while(buckets[p].frequency > buckets[j].frequency) {
+            --j;
+        }
+        if(i >= j) {
+            break;
+        }
+        spt_SwapBucketS(buckets, i, j);
+        if(i == p) {
+            p = j;
+        } else if(j == p) {
+            p = i;
+        }
+    }
+
+    #pragma omp task    
+    { spt_QuickSortBucketS(buckets, l, i); }
+    #pragma omp task    
+    { spt_QuickSortBucketS(buckets, i, r); }    
+}
+
+
 //Binary search: return the first target in an array within a upper and lower bound 
 sptNnzIndex sptBinarySearch(sptIndex *array, int arrayStart, int arrayEnd, sptIndex target) {
   int low = arrayStart, high = arrayEnd;
@@ -1729,6 +1780,19 @@ void htUpdate( table_t *t, unsigned long long key, sptValue val){
     }
 }
 
+void htUpdateS( table_t *t, unsigned long long key, sptValue val){
+    unsigned int pos = htHashCode(key);
+     node_t *list = t->list[pos];
+     node_t *temp = list;
+    while(temp){
+        if(temp->key==key){
+            temp->val = val;
+            return;
+        }
+        temp = temp->next;
+    }
+}
+
 void htInsert( table_t *t, unsigned long long key, sptValue val){
     unsigned int pos = htHashCode(key);
      node_t *newNode = ( node_t*)malloc(sizeof( node_t));
@@ -1738,6 +1802,18 @@ void htInsert( table_t *t, unsigned long long key, sptValue val){
     newNode->val = val;
     newNode->next = list;
     t->list[pos] = newNode;
+}
+
+void htInsertS( table_t *t, unsigned long long key, sptValue val){
+    unsigned int pos = htHashCode(key);
+     node_t *newNode = ( node_t*)malloc(sizeof( node_t));
+     node_t *list = t->list[pos];
+     node_t *temp = list;
+    newNode->key = key;
+    newNode->val = val;
+    list = newNode;
+    t->list[pos] = temp;
+    free(list);
 }
 
 sptValue htGet( table_t *t, unsigned long long key){

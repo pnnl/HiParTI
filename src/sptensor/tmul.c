@@ -23,12 +23,12 @@
 #include <limits.h>
 #include <numa.h>
 
+
 /** All combined:
  * 0: COOY + SPA
  * 1: COOY + HTA
  * 2: HTY + SPA
  * 3: HTY + HTA
- * 4: HTY + HTA on HM
  **/
 int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, int tk, int output_sorting, int placement)
 {
@@ -649,7 +649,7 @@ sptStartTimer(timer);
 }
 
 //2: HTY + SPA
-if(experiment_modes == 2){
+if(experiment_modes == 2) {
     int result;
     /// The number of threads
     sptIndex nmodes_X = X->nmodes;
@@ -981,96 +981,332 @@ sptStartTimer(timer);
     return 0;
 }  
 
-//3: HTY + HTA
-if(experiment_modes == 3){
-    int result;
-    sptIndex nmodes_X = X->nmodes;
-    sptIndex nmodes_Y = Y->nmodes;
-    sptTimer timer;
-    double total_time = 0;
-    sptNewTimer(&timer, 0);
+    //3: HTY + HTA
+    if(experiment_modes == 3)
+    {
+        int result;
+        sptIndex nmodes_X = X->nmodes;
+        sptIndex nmodes_Y = Y->nmodes;
+        sptTimer timer;
+        double total_time = 0;
+        sptNewTimer(&timer, 0);
 
-    if(num_cmodes >= X->nmodes) {
-        spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
-    }
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        if(X->ndims[cmodes_X[m]] != Y->ndims[cmodes_Y[m]]) {
+        if(num_cmodes >= X->nmodes) {
             spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
         }
-    }
-
-    sptStartTimer(timer);
-    /// Shuffle X indices and sort X as the order of free modes -> contract modes; mode_order also separate all the modes to free and contract modes separately.
-    sptIndex * mode_order_X = (sptIndex *)malloc(nmodes_X * sizeof(sptIndex));
-    sptIndex ci = nmodes_X - num_cmodes, fi = 0;
-    for(sptIndex m = 0; m < nmodes_X; ++m) {
-        if(sptInArray(cmodes_X, num_cmodes, m) == -1) {
-            mode_order_X[fi] = m;
-            ++ fi;
+        for(sptIndex m = 0; m < num_cmodes; ++m) {
+            if(X->ndims[cmodes_X[m]] != Y->ndims[cmodes_Y[m]]) {
+                spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
+            }
         }
-    }
-    sptAssert(fi == nmodes_X - num_cmodes);
-    /// Copy the contract modes while keeping the contraction mode order
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        mode_order_X[ci] = cmodes_X[m];
-        ++ ci;
-    }
-    sptAssert(ci == nmodes_X);
-    /// Shuffle tensor indices according to mode_order_X
-    sptSparseTensorShuffleModes(X, mode_order_X);
 
-    // printf("Permuted X:\n");
-    // sptAssert(sptDumpSparseTensor(X, 0, stdout) == 0);
-    for(sptIndex m = 0; m < nmodes_X; ++m) mode_order_X[m] = m; // reset mode_order
-    // sptSparseTensorSortIndexCmode(X, 1, 1, 1, 2);
-    sptSparseTensorSortIndex(X, 1, tk);
-    
+        sptStartTimer(timer);
+        /// Shuffle X indices and sort X as the order of free modes -> contract modes; mode_order also separate all the modes to free and contract modes separately.
+        sptIndex * mode_order_X = (sptIndex *)malloc(nmodes_X * sizeof(sptIndex));
+        sptIndex ci = nmodes_X - num_cmodes, fi = 0;
+        for(sptIndex m = 0; m < nmodes_X; ++m) {
+            if(sptInArray(cmodes_X, num_cmodes, m) == -1) {
+                mode_order_X[fi] = m;
+                ++ fi;
+            }
+        }
+        sptAssert(fi == nmodes_X - num_cmodes);
+        /// Copy the contract modes while keeping the contraction mode order
+        for(sptIndex m = 0; m < num_cmodes; ++m) {
+            mode_order_X[ci] = cmodes_X[m];
+            ++ ci;
+        }
+        sptAssert(ci == nmodes_X);
+        /// Shuffle tensor indices according to mode_order_X
+        sptSparseTensorShuffleModes(X, mode_order_X);
+
+        // printf("Permuted X:\n");
+        // sptAssert(sptDumpSparseTensor(X, 0, stdout) == 0);
+        for(sptIndex m = 0; m < nmodes_X; ++m) mode_order_X[m] = m; // reset mode_order
+        // sptSparseTensorSortIndexCmode(X, 1, 1, 1, 2);
+        sptSparseTensorSortIndex(X, 1, tk);
+        
+        sptStopTimer(timer);
+        //total_time += sptPrintElapsedTime(timer, "Sort X");
+        double X_time = sptElapsedTime(timer);
+        total_time += X_time;
+        sptStartTimer(timer);
+
+        //sptAssert(sptDumpSparseTensor(Y, 0, stdout) == 0);
+        sptIndex * mode_order_Y = (sptIndex *)malloc(nmodes_Y * sizeof(sptIndex));
+        ci = 0;
+        fi = num_cmodes;
+        for(sptIndex m = 0; m < nmodes_Y; ++m) {
+            if(sptInArray(cmodes_Y, num_cmodes, m) == -1) { // m is not a contraction mode
+                mode_order_Y[fi] = m;
+                ++ fi;
+            }
+        }
+        /// Copy the contract modes while keeping the contraction mode order
+        for(sptIndex m = 0; m < num_cmodes; ++m) {
+            mode_order_Y[ci] = cmodes_Y[m];
+            ++ ci;
+        }
+
+        table_t *Y_ht;
+        unsigned int Y_ht_size = Y->nnz;
+        Y_ht = tensor_htCreate(Y_ht_size);    
+        
+        omp_lock_t *locks = (omp_lock_t *)malloc(Y_ht_size*sizeof(omp_lock_t));
+        for(size_t i = 0; i < Y_ht_size; i++) omp_init_lock(&locks[i]);
+
+        sptIndex* Y_cmode_inds = (sptIndex*)malloc((num_cmodes + 1) * sizeof(sptIndex));
+        for(sptIndex i = 0; i < num_cmodes + 1; i++) Y_cmode_inds[i] = 1;
+        for(sptIndex i = 0; i < num_cmodes;i++){
+            for(sptIndex j = i; j < num_cmodes;j++)
+                Y_cmode_inds[i] = Y_cmode_inds[i] * Y->ndims[mode_order_Y[j]];    
+        }
+
+        sptIndex Y_num_fmodes = nmodes_Y - num_cmodes;
+        sptIndex* Y_fmode_inds = (sptIndex*)malloc((Y_num_fmodes + 1) * sizeof(sptIndex));
+        for(sptIndex i = 0; i < Y_num_fmodes + 1; i++) Y_fmode_inds[i] = 1;
+        for(sptIndex i = 0; i < Y_num_fmodes;i++){
+            for(sptIndex j = i; j < Y_num_fmodes;j++)
+                Y_fmode_inds[i] = Y_fmode_inds[i] * Y->ndims[mode_order_Y[j + num_cmodes]]; 
+        }
+
+        sptNnzIndex Y_nnz = Y->nnz;
+    #pragma omp parallel for schedule(static) num_threads(tk) shared(Y_ht, Y_num_fmodes, mode_order_Y, num_cmodes, Y_cmode_inds, Y_fmode_inds)
+        for(sptNnzIndex i = 0; i < Y_nnz; i++){
+            //if (Y->values.data[i] <0.00000001) continue;
+            unsigned long long key_cmodes = 0;    
+            for(sptIndex m = 0; m < num_cmodes; ++m)
+                key_cmodes += Y->inds[mode_order_Y[m]].data[i] * Y_cmode_inds[m + 1];    
+
+            unsigned long long key_fmodes = 0;    
+            for(sptIndex m = 0; m < Y_num_fmodes; ++m)
+                key_fmodes += Y->inds[mode_order_Y[m+num_cmodes]].data[i] * Y_fmode_inds[m + 1];
+            unsigned pos = tensor_htHashCode(key_cmodes);
+            omp_set_lock(&locks[pos]);    
+            tensor_value Y_val = tensor_htGet(Y_ht, key_cmodes);
+            //printf("Y_val.len: %d\n", Y_val.len); 
+            if(Y_val.len == 0) {
+                tensor_htInsert(Y_ht, key_cmodes, key_fmodes, Y->values.data[i]);
+            }
+            else  {
+                tensor_htUpdate(Y_ht, key_cmodes, key_fmodes, Y->values.data[i]);
+                //for(int i = 0; i < Y_val.len; i++)
+                //    printf("key_FM: %lu, Y_val: %f\n", Y_val.key_FM[i], Y_val.val[i]); 
+            }
+            omp_unset_lock(&locks[pos]);    
+            //sprintf("i: %d, key_cmodes: %lu, key_fmodes: %lu\n", i, key_cmodes, key_fmodes);
+        }
+
+        for(size_t i = 0; i < Y_ht_size; i++) omp_destroy_lock(&locks[i]);
+
+        sptStopTimer(timer);     
+        total_time += sptElapsedTime(timer);
+        printf("[Input Processing]: %.6f s\n", sptElapsedTime(timer) + X_time);
+
+        sptNnzIndexVector fidx_X;
+        /// Set indices for free modes, use X
+        sptSparseTensorSetIndices(X, mode_order_X, nmodes_X - num_cmodes, &fidx_X);
+        //printf("fidx_X: \n");
+        //sptDumpNnzIndexVector(&fidx_X, stdout);
+
+        /// Allocate the output tensor
+        sptIndex nmodes_Z = nmodes_X + nmodes_Y - 2 * num_cmodes;
+        sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
+        spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
+        for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {
+            ndims_buf[m] = X->ndims[m];
+        }
+
+        /// For non-sorted Y 
+        for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
+            ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[mode_order_Y[m]];
+        }
+
+        free(mode_order_X);
+        free(mode_order_Y);
+
+        /// Each thread with a local Z_tmp
+        sptSparseTensor *Z_tmp = malloc(tk * sizeof (sptSparseTensor));
+        for (int i = 0; i < tk; i++){
+            result = sptNewSparseTensor(&(Z_tmp[i]), nmodes_Z, ndims_buf);
+        }
+
+        //free(ndims_buf);
+        spt_CheckError(result, "CPU  SpTns * SpTns", NULL);
+        
+        sptTimer timer_SPA;
+        double time_prep = 0;
+        double time_free_mode = 0;
+        double time_spa = 0;
+        double time_accumulate_z = 0;
+        sptNewTimer(&timer_SPA, 0);
+        sptStartTimer(timer);
+
+        // For the progress
+        int fx_counter = fidx_X.len;
+    #pragma omp parallel for schedule(static) num_threads(tk) shared(fidx_X, nmodes_X, nmodes_Y, num_cmodes, Y_fmode_inds, Y_ht, Y_cmode_inds)       
+        for(sptNnzIndex fx_ptr = 0; fx_ptr < fidx_X.len - 1; ++fx_ptr) {    // Loop fiber pointers of X
+            int tid = omp_get_thread_num();
+            fx_counter--;
+            //if (fx_counter % 100 == 0) printf("Progress: %d\/%d\n", fx_counter, fidx_X.len);
+            if (tid == 0){
+                sptStartTimer(timer_SPA);
+            }
+            sptNnzIndex fx_begin = fidx_X.data[fx_ptr];
+            sptNnzIndex fx_end = fidx_X.data[fx_ptr+1];
+
+            /// hashtable size
+            const unsigned int ht_size = 10000;
+            sptIndex nmodes_spa = nmodes_Y - num_cmodes;
+            long int nnz_counter = 0;
+            sptIndex current_idx = 0;
+
+            table_t *ht;
+            ht = htCreate(ht_size);
+
+            if (tid == 0){
+                sptStopTimer(timer_SPA);
+                time_prep += sptElapsedTime(timer_SPA);
+            }
+
+            for(sptNnzIndex zX = fx_begin; zX < fx_end; ++ zX) {   
+                sptValue valX = X->values.data[zX];  
+                if (tid == 0) {
+                    sptStartTimer(timer_SPA);
+                }       
+                sptIndexVector cmode_index_X; 
+                sptNewIndexVector(&cmode_index_X, num_cmodes, num_cmodes);
+                for(sptIndex i = 0; i < num_cmodes; ++i){
+                    cmode_index_X.data[i] = X->inds[nmodes_X - num_cmodes + i].data[zX];
+                    //printf("\ncmode_index_X[%lu]: %lu\n", i, cmode_index_X.data[i]);
+                }
+
+                unsigned long long key_cmodes = 0;    
+                for(sptIndex m = 0; m < num_cmodes; ++m)
+                    key_cmodes += cmode_index_X.data[m] * Y_cmode_inds[m + 1];  
+
+                tensor_value Y_val = tensor_htGet(Y_ht, key_cmodes);  
+                //printf("Y_val.len: %d\n", Y_val.len);
+                unsigned int my_len = Y_val.len;
+                if (tid == 0){
+                    sptStopTimer(timer_SPA);
+                    time_free_mode += sptElapsedTime(timer_SPA);
+                }
+                if(my_len == 0) continue;
+
+                if (tid == 0) {
+                    sptStartTimer(timer_SPA);       
+                }        
+
+                for(int i = 0; i < my_len; i++){
+                    unsigned long long fmode =  Y_val.key_FM[i];
+                    //printf("i: %d, Y_val.key_FM[i]: %lu, Y_val.val[i]: %f\n", i, Y_val.key_FM[i], Y_val.val[i]);
+                    sptValue spa_val = htGet(ht, fmode);
+                    float result = Y_val.val[i] * valX;
+                    if(spa_val == LONG_MIN) {
+                        htInsert(ht, fmode, result);
+                        nnz_counter++;
+                    }
+                    else    
+                        htUpdate(ht, fmode, spa_val + result);
+                }
+
+                if (tid == 0){
+                    sptStopTimer(timer_SPA);
+                    time_spa += sptElapsedTime(timer_SPA);
+                }
+                
+            }   // End Loop nnzs inside a X fiber
+
+            if (tid == 0) {
+                sptStartTimer(timer_SPA);    
+            }
+
+            for(int i = 0; i < ht->size; i++){
+                node_t *temp = ht->list[i];
+                while(temp){
+                    unsigned long long idx_tmp = temp->key;
+                    //nnz_counter++;
+                    for(sptIndex m = 0; m < nmodes_spa; ++m) {
+                        //printf("idx_tmp: %lu, m: %d, (idx_tmp inds_buf[m])/inds_buf[m+1]): %d\n", idx_tmp, m, (idx_tmp%inds_buf[m])/inds_buf[m+1]);                   
+                        sptAppendIndexVector(&Z_tmp[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
+                    }
+                    //printf("val: %f\n", temp->val);
+                    sptAppendValueVector(&Z_tmp[tid].values, temp->val);
+                    node_t* pre = temp;
+                    temp = temp->next;
+                    free(pre);
+                }
+            }
+            Z_tmp[tid].nnz += nnz_counter;
+            for(sptIndex i = 0; i < nnz_counter; ++i) {
+                for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {               
+                    sptAppendIndexVector(&Z_tmp[tid].inds[m], X->inds[m].data[fx_begin]);
+                }
+            }
+            htFree(ht);
+            if (tid == 0){
+                sptStopTimer(timer_SPA);
+                time_accumulate_z += sptElapsedTime(timer_SPA);
+            }
+        }
+
     sptStopTimer(timer);
-    //total_time += sptPrintElapsedTime(timer, "Sort X");
-    double X_time = sptElapsedTime(timer);
-    total_time += X_time;
+    double main_computation = sptElapsedTime(timer);
+    total_time += main_computation;
+    double spa_total = time_prep + time_free_mode + time_spa + time_accumulate_z;
+    printf("[Index Search]: %.6f s\n", (time_free_mode + time_prep)/spa_total * main_computation);
+    printf("[Accumulation]: %.6f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
+
     sptStartTimer(timer);
+    /// Append Z_tmp to Z
+        //Calculate the indecies of Z
+        unsigned long long* Z_tmp_start = (unsigned long long*) malloc( (tk + 1) * sizeof(unsigned long long));
+        unsigned long long Z_total_size = 0;
 
-    //sptAssert(sptDumpSparseTensor(Y, 0, stdout) == 0);
-    sptIndex * mode_order_Y = (sptIndex *)malloc(nmodes_Y * sizeof(sptIndex));
-    ci = 0;
-    fi = num_cmodes;
-    for(sptIndex m = 0; m < nmodes_Y; ++m) {
-        if(sptInArray(cmodes_Y, num_cmodes, m) == -1) { // m is not a contraction mode
-            mode_order_Y[fi] = m;
-            ++ fi;
+        Z_tmp_start[0] = 0;
+        for(int i = 0; i < tk; i++){
+            Z_tmp_start[i + 1] = Z_tmp[i].nnz + Z_tmp_start[i];
+            Z_total_size +=  Z_tmp[i].nnz;
+            //printf("Z_tmp_start[i + 1]: %lu, i: %d\n", Z_tmp_start[i + 1], i);
         }
-    }
-    /// Copy the contract modes while keeping the contraction mode order
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        mode_order_Y[ci] = cmodes_Y[m];
-        ++ ci;
-    }
+        //printf("%d\n", Z_total_size);
+        result = sptNewSparseTensorWithSize(Z, nmodes_Z, ndims_buf, Z_total_size); 
 
-    table_t *Y_ht;
-    unsigned int Y_ht_size = Y->nnz;
-    Y_ht = tensor_htCreate(Y_ht_size);    
-    
-    omp_lock_t *locks = (omp_lock_t *)malloc(Y_ht_size*sizeof(omp_lock_t));
-    for(size_t i = 0; i < Y_ht_size; i++) omp_init_lock(&locks[i]);
+    #pragma omp parallel for schedule(static) num_threads(tk) shared(Z, nmodes_Z, Z_tmp_start)
+        for(int i = 0; i < tk; i++){
+            int tid = omp_get_thread_num();
+            if(Z_tmp[tid].nnz > 0){
+                for(sptIndex m = 0; m < nmodes_Z; ++m) 
+                    sptAppendIndexVectorWithVectorStartFromNuma(&Z->inds[m], &Z_tmp[tid].inds[m], Z_tmp_start[tid]);        
+                sptAppendValueVectorWithVectorStartFromNuma(&Z->values, &Z_tmp[tid].values, Z_tmp_start[tid]);  
+                //sptDumpSparseTensor(&Z_tmp[tid], 0, stdout);
+            }
+        } 
 
-    sptIndex* Y_cmode_inds = (sptIndex*)malloc((num_cmodes + 1) * sizeof(sptIndex));
-    for(sptIndex i = 0; i < num_cmodes + 1; i++) Y_cmode_inds[i] = 1;
-    for(sptIndex i = 0; i < num_cmodes;i++){
-        for(sptIndex j = i; j < num_cmodes;j++)
-            Y_cmode_inds[i] = Y_cmode_inds[i] * Y->ndims[mode_order_Y[j]];    
-    }
+        //  for(int i = 0; i < tk; i++)
+        //      sptFreeSparseTensor(&Z_tmp[i]);
+        sptStopTimer(timer);
+        total_time += sptPrintElapsedTime(timer, "Writeback");
 
-    sptIndex Y_num_fmodes = nmodes_Y - num_cmodes;
-    sptIndex* Y_fmode_inds = (sptIndex*)malloc((Y_num_fmodes + 1) * sizeof(sptIndex));
-    for(sptIndex i = 0; i < Y_num_fmodes + 1; i++) Y_fmode_inds[i] = 1;
-    for(sptIndex i = 0; i < Y_num_fmodes;i++){
-        for(sptIndex j = i; j < Y_num_fmodes;j++)
-            Y_fmode_inds[i] = Y_fmode_inds[i] * Y->ndims[mode_order_Y[j + num_cmodes]]; 
-    }
+        sptStartTimer(timer);
+        if(output_sorting == 1){
+            sptSparseTensorSortIndex(Z, 1, tk);
+        }
+        sptStopTimer(timer);
+        total_time += sptPrintElapsedTime(timer, "Output Sorting");
+        printf("[Total time]: %.6f s\n", total_time);
+        printf("\n");
+    }  
 
-    sptNnzIndex Y_nnz = Y->nnz;
-#pragma omp parallel for schedule(static) num_threads(tk) shared(Y_ht, Y_num_fmodes, mode_order_Y, num_cmodes, Y_cmode_inds, Y_fmode_inds)
+    return 0;
+}
+
+
+/* Two Tensor Contractions */
+void buildHtY(int tk,  table_t * Y_ht, sptIndex Y_num_fmodes, sptIndex *mode_order_Y, sptIndex num_cmodes, sptIndex * Y_cmode_inds, sptIndex * Y_fmode_inds, sptNnzIndex Y_nnz, sptSparseTensor * Y, omp_lock_t *locks)
+{
+   #pragma omp parallel for schedule(static) num_threads(tk) shared(Y_ht, Y_num_fmodes, mode_order_Y, num_cmodes, Y_cmode_inds, Y_fmode_inds)
     for(sptNnzIndex i = 0; i < Y_nnz; i++){
         //if (Y->values.data[i] <0.00000001) continue;
         unsigned long long key_cmodes = 0;    
@@ -1095,56 +1331,13 @@ if(experiment_modes == 3){
         omp_unset_lock(&locks[pos]);    
         //sprintf("i: %d, key_cmodes: %lu, key_fmodes: %lu\n", i, key_cmodes, key_fmodes);
     }
+}
 
-    for(size_t i = 0; i < Y_ht_size; i++) omp_destroy_lock(&locks[i]);
-
-    sptStopTimer(timer);     
-    total_time += sptElapsedTime(timer);
-    printf("[Input Processing]: %.6f s\n", sptElapsedTime(timer) + X_time);
-
-    sptNnzIndexVector fidx_X;
-    /// Set indices for free modes, use X
-    sptSparseTensorSetIndices(X, mode_order_X, nmodes_X - num_cmodes, &fidx_X);
-    //printf("fidx_X: \n");
-    //sptDumpNnzIndexVector(&fidx_X, stdout);
-
-    /// Allocate the output tensor
-    sptIndex nmodes_Z = nmodes_X + nmodes_Y - 2 * num_cmodes;
-    sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
-    spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
-    for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {
-        ndims_buf[m] = X->ndims[m];
-    }
-
-    /// For non-sorted Y 
-    for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
-        ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[mode_order_Y[m]];
-    }
-
-    free(mode_order_X);
-    free(mode_order_Y);
-
-    /// Each thread with a local Z_tmp
-    sptSparseTensor *Z_tmp = malloc(tk * sizeof (sptSparseTensor));
-    for (int i = 0; i < tk; i++){
-        result = sptNewSparseTensor(&(Z_tmp[i]), nmodes_Z, ndims_buf);
-    }
-
-    //free(ndims_buf);
-    spt_CheckError(result, "CPU  SpTns * SpTns", NULL);
-    
-    sptTimer timer_SPA;
-    double time_prep = 0;
-    double time_free_mode = 0;
-    double time_spa = 0;
-    double time_accumulate_z = 0;
-    sptNewTimer(&timer_SPA, 0);
-    sptStartTimer(timer);
-
-    // For the progress
-    int fx_counter = fidx_X.len;
+void computeTC(int tk, sptNnzIndexVector fidx_X, sptIndex nmodes_X, sptIndex nmodes_Y, sptIndex num_cmodes, sptSparseTensor * Z_tmp, sptIndex * Y_fmode_inds, table_t * Y_ht, sptIndex * Y_cmode_inds, int fx_counter, sptTimer timer_SPA, sptSparseTensor* X, double* time_prep, double* time_index_search, double* time_spa, double* time_accumulate_z, sptIndex nmodes_Z)
+{
 #pragma omp parallel for schedule(static) num_threads(tk) shared(fidx_X, nmodes_X, nmodes_Y, num_cmodes, Y_fmode_inds, Y_ht, Y_cmode_inds)       
-    for(sptNnzIndex fx_ptr = 0; fx_ptr < fidx_X.len - 1; ++fx_ptr) {    // Loop fiber pointers of X
+    for(sptNnzIndex fx_ptr = 0; fx_ptr < fidx_X.len - 1; ++fx_ptr) 
+    {    // Loop fiber pointers of X
         int tid = omp_get_thread_num();
         fx_counter--;
         //if (fx_counter % 100 == 0) printf("Progress: %d\/%d\n", fx_counter, fidx_X.len);
@@ -1165,7 +1358,7 @@ if(experiment_modes == 3){
 
         if (tid == 0){
             sptStopTimer(timer_SPA);
-            time_prep += sptElapsedTime(timer_SPA);
+            *time_prep += sptElapsedTime(timer_SPA);
         }
 
         for(sptNnzIndex zX = fx_begin; zX < fx_end; ++ zX) {   
@@ -1189,7 +1382,7 @@ if(experiment_modes == 3){
             unsigned int my_len = Y_val.len;
             if (tid == 0){
                 sptStopTimer(timer_SPA);
-                time_free_mode += sptElapsedTime(timer_SPA);
+                *time_index_search += sptElapsedTime(timer_SPA);
             }
             if(my_len == 0) continue;
 
@@ -1212,7 +1405,7 @@ if(experiment_modes == 3){
 
             if (tid == 0){
                 sptStopTimer(timer_SPA);
-                time_spa += sptElapsedTime(timer_SPA);
+                *time_spa += sptElapsedTime(timer_SPA);
             }
             
         }   // End Loop nnzs inside a X fiber
@@ -1246,34 +1439,17 @@ if(experiment_modes == 3){
         htFree(ht);
         if (tid == 0){
             sptStopTimer(timer_SPA);
-            time_accumulate_z += sptElapsedTime(timer_SPA);
+            *time_accumulate_z += sptElapsedTime(timer_SPA);
         }
     }
+}
 
-sptStopTimer(timer);
-double main_computation = sptElapsedTime(timer);
-total_time += main_computation;
-double spa_total = time_prep + time_free_mode + time_spa + time_accumulate_z;
-printf("[Index Search]: %.6f s\n", (time_free_mode + time_prep)/spa_total * main_computation);
-printf("[Accumulation]: %.6f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
 
-sptStartTimer(timer);
-/// Append Z_tmp to Z
-    //Calculate the indecies of Z
-    unsigned long long* Z_tmp_start = (unsigned long long*) malloc( (tk + 1) * sizeof(unsigned long long));
-    unsigned long long Z_total_size = 0;
-
-    Z_tmp_start[0] = 0;
-    for(int i = 0; i < tk; i++){
-        Z_tmp_start[i + 1] = Z_tmp[i].nnz + Z_tmp_start[i];
-        Z_total_size +=  Z_tmp[i].nnz;
-        //printf("Z_tmp_start[i + 1]: %lu, i: %d\n", Z_tmp_start[i + 1], i);
-    }
-    //printf("%d\n", Z_total_size);
-    result = sptNewSparseTensorWithSize(Z, nmodes_Z, ndims_buf, Z_total_size); 
-
+void writeback (sptSparseTensor * Z_tmp, sptSparseTensor * Z, sptIndex nmodes_Z, unsigned long long *Z_tmp_start, int tk)
+{
 #pragma omp parallel for schedule(static) num_threads(tk) shared(Z, nmodes_Z, Z_tmp_start)
-    for(int i = 0; i < tk; i++){
+    for(int i = 0; i < tk; i++)
+    {
         int tid = omp_get_thread_num();
         if(Z_tmp[tid].nnz > 0){
             for(sptIndex m = 0; m < nmodes_Z; ++m) 
@@ -1282,992 +1458,591 @@ sptStartTimer(timer);
             //sptDumpSparseTensor(&Z_tmp[tid], 0, stdout);
         }
     } 
+}
 
-    //  for(int i = 0; i < tk; i++)
-    //      sptFreeSparseTensor(&Z_tmp[i]);
+
+
+// Summation
+void summation_original(int tk, sptIndex nmodes_Z, sptIndex * ndims_buf, unsigned long long Z_total_size, sptSparseTensor *Z_tmp, sptSparseTensor * Z_input, sptSparseTensor * Z)
+{
+    printf("Z_input: \n");
+    sptDumpSparseTensor(Z_input, 0, stdout);
+    long int Z_counter = Z_input->nnz;
+#pragma omp parallel for schedule(static) num_threads(tk) shared(Z, Z_counter, Z_input)
+    for(sptNnzIndex i = 0; i < Z_input->nnz; i++){
+        Z_counter--;
+        if (Z_counter % 10000 == 0) {
+            printf("Progress: %ld\/%lu\n", Z_counter, Z_input->nnz); 
+            fflush(stdout);
+        }
+        sptIndexVector inds_buf;
+        sptNewIndexVector(&inds_buf, nmodes_Z, nmodes_Z);
+        for(sptIndex m = 0; m < nmodes_Z; ++m)
+            inds_buf.data[m] = Z_input->inds[m].data[i];
+        long int found = sptInIndexVector(Z->inds, nmodes_Z, Z->nnz, &inds_buf);    
+        if(found == -1) 
+        {
+            #pragma omp critical 
+            {
+                for(sptIndex m = 0; m < nmodes_Z; ++m)
+                    sptAppendIndexVector(&Z->inds[m], inds_buf.data[m]);
+                sptAppendValueVector(&Z->values, Z_input->values.data[i]);
+            }
+        } else {
+            Z->values.data[found] += Z_input->values.data[i];
+        }
+    }
+}
+
+
+void writebackResults(sptSparseTensor * Z_tmp, sptIndex nmodes_Z, unsigned long long *Z_tmp_start, sptSparseTensor * Z_input_backup, sptSparseTensor * Z_backup, sptSparseTensor * Z_input, int tk)
+{
+    #pragma omp parallel for schedule(static) num_threads(tk) shared(Z_tmp, nmodes_Z, Z_tmp_start)
+    for (int i = 0; i < tk; i++)
+    {
+        int tid = omp_get_thread_num();
+        if (Z_tmp[tid].nnz > 0)
+        {
+            for (sptIndex m = 0; m < nmodes_Z; ++m)
+                sptAppendIndexVectorWithVectorStartFromNuma(&Z_input_backup->inds[m], &Z_tmp[tid].inds[m], Z_tmp_start[tid]);
+            sptAppendValueVectorWithVectorStartFromNuma(&Z_input_backup->values, &Z_tmp[tid].values, Z_tmp_start[tid]);
+        }
+    }   
+
+    #pragma omp parallel for schedule(static) num_threads(tk) shared(Z_tmp, nmodes_Z, Z_tmp_start)
+    for (int i = 0; i < tk; i++)
+    {
+        int tid = omp_get_thread_num();
+        if (Z_tmp[tid].nnz > 0)
+        {
+            for (sptIndex m = 0; m < nmodes_Z; ++m)
+                sptAppendIndexVectorWithVectorStartFromNuma(&Z_backup->inds[m], &Z_tmp[tid].inds[m], Z_tmp_start[tid]);
+            sptAppendValueVectorWithVectorStartFromNuma(&Z_backup->values, &Z_tmp[tid].values, Z_tmp_start[tid]);
+        }
+    }   
+
+    #pragma omp parallel for schedule(static) num_threads(tk) shared(Z_tmp, nmodes_Z, Z_tmp_start)
+    for (int i = 0; i < tk; i++)
+    {
+        int tid = omp_get_thread_num();
+        if (Z_tmp[tid].nnz > 0)
+        {
+            for (sptIndex m = 0; m < nmodes_Z; ++m)
+                sptAppendIndexVectorWithVectorStartFromNuma(&Z_input->inds[m], &Z_tmp[tid].inds[m], Z_tmp_start[tid]);
+            sptAppendValueVectorWithVectorStartFromNuma(&Z_input->values, &Z_tmp[tid].values, Z_tmp_start[tid]);
+        }
+    } 
+}
+
+
+void summation(sptIndex nmodes_Z, sptSparseTensor *Z_tmp, sptSparseTensor *Z_input, int tk, sptTimer timer, double* summation_time, sptIndex * ndims_buf, unsigned long long Z_total_size, unsigned long long * Z_tmp_start, sptSparseTensor *Z, int opt_summation)
+{
+    sptSparseTensor *Z_input_backup = malloc(sizeof (sptSparseTensor));
+    sptSparseTensor *Z_backup = malloc(sizeof (sptSparseTensor));
+    int result = sptNewSparseTensorWithSize(Z_input_backup, nmodes_Z, ndims_buf, Z_total_size);
+    result = sptNewSparseTensorWithSize(Z_backup, nmodes_Z, ndims_buf, Z_total_size);
+
+    Z_input = malloc(sizeof(sptSparseTensor));
+    result = sptNewSparseTensorWithSize(Z_input, nmodes_Z, ndims_buf, Z_total_size);
+    
+    writebackResults (Z_tmp, nmodes_Z, Z_tmp_start, Z_input_backup, Z_backup, Z_input, tk);
+
+    #pragma omp parallel for schedule(static) num_threads(tk)
+    for(int i = 0; i < tk; i++)
+        sptFreeSparseTensor(&Z_tmp[i]);   
+    
+    if(opt_summation == 2) 
+        summation_original(tk, nmodes_Z, ndims_buf, Z_total_size, Z_tmp, Z_input, Z);
+    else if (opt_summation == 1)
+    {
+        sptStartTimer(timer);    
+        unsigned long long Z_nnz = 0;
+        sptIndex *Z_mode_inds = (sptIndex *)malloc((nmodes_Z + 1) * sizeof(sptIndex));
+        for (sptIndex i = 0; i < nmodes_Z + 1; i++)
+            Z_mode_inds[i] = 1;
+        for (sptIndex i = 0; i < nmodes_Z; i++)
+        {
+            for (sptIndex j = i; j < nmodes_Z; j++)
+                Z_mode_inds[i] = Z_mode_inds[i] * Z_tmp[0].ndims[j];
+        }
+
+        table_t *Z_ht;
+        for (int i = 0; i < tk; i++)
+        {
+            Z_nnz += Z_tmp[i].nnz;
+        }    
+
+        unsigned long long  Z_ht_size = Z_nnz / 40;
+        // Z_nnz = 0;
+        // for (int i = 0; i < tk; i++)
+        // {
+        //     Z_nnz += Z_tmp_dram[i].nnz + Z_tmp_optane[i].nnz;
+        // }
+
+        omp_lock_t *locks_Z = (omp_lock_t *)malloc(Z_ht_size * sizeof(omp_lock_t));
+        for (size_t i = 0; i < Z_ht_size; i++)
+        {
+            omp_init_lock(&locks_Z[i]);
+        }
+        sptStopTimer(timer);
+        *summation_time += sptElapsedTime(timer);
+
+        sptStartTimer(timer);
+        bucket_s *buckets_s = (bucket_s *)malloc(Z_ht_size * sizeof(bucket_s));
+    #pragma omp parallel for schedule(static) num_threads(tk) shared(Z_ht_size, buckets_s)
+        for (int i = 0; i < Z_ht_size; i++)
+        {
+            buckets_s[i].frequency = 0;
+            buckets_s[i].pos = i;
+            sptNewIndexVector(&buckets_s[i].idx, 1, 1);
+        }
+        sptStopTimer(timer);
+        *summation_time += sptElapsedTime(timer);
+
+        sptStartTimer(timer);
+        unsigned long long Z_input_nnz = Z_input->nnz;
+
+
+    #pragma omp parallel for schedule(static, tk) num_threads(tk) shared(Z_input, Z_input_nnz, Z_mode_inds, buckets_s, locks_Z)
+        for (int i = 0; i < Z_input_nnz; i++)
+        {
+            unsigned long long key_modes = 0;
+            for (sptIndex m = 0; m < nmodes_Z; ++m)
+                key_modes += Z_input->inds[m].data[i] * Z_mode_inds[m + 1];
+            unsigned bucket = key_modes%Z_ht_size;
+            
+            omp_set_lock(&locks_Z[bucket]);
+            buckets_s[bucket].frequency++;
+            sptAppendIndexVector(&buckets_s[bucket].idx, i);
+            omp_unset_lock(&locks_Z[bucket]);
+        }
+
+        sptQuickSortBucketS(buckets_s, 0, Z_ht_size, tk);
+        sptStopTimer(timer);
+        *summation_time += sptElapsedTime(timer);
+
+        sptStartTimer(timer);
+        Z_ht = htCreate(Z_ht_size);
+        sptStopTimer(timer);
+        *summation_time += sptElapsedTime(timer);
+
+
+        sptStartTimer(timer); 
+        unsigned long long tmp_counter;
+        tmp_counter = Z_nnz;
+        #pragma omp parallel for schedule(dynamic, 1) num_threads(tk) shared(Z_mode_inds, Z_ht, locks_Z, Z_input_nnz, buckets_s)
+        for(sptNnzIndex i = 0; i < Z_nnz; i++) {
+            tmp_counter--;
+            unsigned long long key_modes = 0;  
+            for(sptIndex m = 0; m < nmodes_Z; ++m){
+                key_modes += Z_input->inds[m].data[i] * Z_mode_inds[m + 1];    
+            }
+
+            unsigned int bucket = buckets_s[htHashCode(key_modes)].pos;
+            omp_set_lock(&locks_Z[bucket]);    
+            sptValue Z_val = htGet(Z_ht, key_modes);
+            if(Z_val == LONG_MIN) {
+                htInsertS(Z_ht, key_modes, Z_input->values.data[i]);
+            }
+            else    
+                htUpdateS(Z_ht, key_modes, Z_val + Z_input->values.data[i]);
+            omp_unset_lock(&locks_Z[bucket]);  
+        }
+
+        sptStopTimer(timer);
+        *summation_time += sptElapsedTime(timer);
+
+        tmp_counter = Z_input_nnz;
+        #pragma omp parallel for schedule(dynamic, 1) num_threads(tk) shared(Z_mode_inds, Z_ht, locks_Z, Z_input_nnz, buckets_s)
+        for(sptNnzIndex i = 0; i < Z_input_nnz; i++) 
+        {
+            tmp_counter--;
+            unsigned long long key_modes = 0;  
+            for(sptIndex m = 0; m < nmodes_Z; ++m){
+                key_modes += Z_input->inds[m].data[i] * Z_mode_inds[m + 1];    
+            }
+
+            unsigned int bucket = buckets_s[htHashCode(key_modes)].pos;
+            omp_set_lock(&locks_Z[bucket]);    
+            sptValue Z_val = htGet(Z_ht, key_modes);
+            if(Z_val == LONG_MIN) {
+                htInsertS(Z_ht, key_modes, Z_input->values.data[i]);
+            }
+            else    
+                htUpdateS(Z_ht, key_modes, Z_val + Z_input->values.data[i]);
+            omp_unset_lock(&locks_Z[bucket]);  
+        }
+
+        for (size_t i = 0; i < Z_ht_size; i++)
+        {
+            omp_destroy_lock(&locks_Z[i]);
+        }
+
+        sptStopTimer(timer);
+        *summation_time += sptElapsedTime(timer);
+    }
+}
+
+
+
+int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y,
+    sptSparseTensor *Z2, sptSparseTensor * const X2, sptSparseTensor *const Y2, sptIndex num_cmodes_2, sptIndex * cmodes_X2, sptIndex * cmodes_Y2,
+    int tk, int output_sorting, int placement)
+{
+    //3: HTY + HTA
+    int opt_summation = 1; // 0: no summation; 1: ours; 2: linear search summation
+    int result;
+    sptIndex nmodes_X = X->nmodes;
+    sptIndex nmodes_Y = Y->nmodes;
+    sptIndex nmodes_X2 = X2->nmodes;
+    sptIndex nmodes_Y2 = Y2->nmodes;
+    sptTimer timer, stage1, stage2;
+    double total_time = 0;
+    sptNewTimer(&timer, 0);
+    sptNewTimer(&stage1, 0);
+    sptNewTimer(&stage2, 0);
+
+    if( (num_cmodes >= X->nmodes || num_cmodes >= Y->nmodes) || (num_cmodes_2 >= X2->nmodes || num_cmodes_2 >= Y2->nmodes)) {
+        spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
+    }
+    for(sptIndex m = 0; m < num_cmodes; ++m) {
+        if(X->ndims[cmodes_X[m]] != Y->ndims[cmodes_Y[m]]) {
+            spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
+        }
+    }
+    for(sptIndex m = 0; m < num_cmodes_2; ++m) {
+        if(X2->ndims[cmodes_X2[m]] != Y2->ndims[cmodes_Y2[m]]) {
+            spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
+        }
+    }
+
+    sptStartTimer(timer);
+    /// Shuffle X indices and sort X as the order of free modes -> contract modes; mode_order also separate all the modes to free and contract modes separately.
+    sptIndex * mode_order_X = (sptIndex *)malloc(nmodes_X * sizeof(sptIndex));
+    sptIndex ci = nmodes_X - num_cmodes, fi = 0;
+    for(sptIndex m = 0; m < nmodes_X; ++m) {
+        if(sptInArray(cmodes_X, num_cmodes, m) == -1) {
+            mode_order_X[fi] = m;
+            ++ fi;
+        }
+    }
+    sptAssert(fi == nmodes_X - num_cmodes);
+    sptIndex * mode_order_X2 = (sptIndex *)malloc(nmodes_X2 * sizeof(sptIndex));
+    sptIndex ci2 = nmodes_X2 - num_cmodes_2, fi2 = 0;
+    for(sptIndex m = 0; m < nmodes_X2; ++m) {
+        if(sptInArray(cmodes_X2, num_cmodes_2, m) == -1) {
+            mode_order_X2[fi2] = m;
+            ++ fi2;
+        }
+    }
+    sptAssert(fi2 == nmodes_X2 - num_cmodes_2);
+    
+    /// Copy the contract modes while keeping the contraction mode order
+    for(sptIndex m = 0; m < num_cmodes; ++m) {
+        mode_order_X[ci] = cmodes_X[m];
+        ++ ci;
+    }
+    sptAssert(ci == nmodes_X);
+    for(sptIndex m = 0; m < num_cmodes_2; ++m) {
+        mode_order_X2[ci2] = cmodes_X2[m];
+        ++ ci2;
+    }
+    sptAssert(ci2 == nmodes_X2);
+    printf("mode_order_X:\n");
+    sptDumpIndexArray(mode_order_X, nmodes_X, stdout);
+    printf("mode_order_X2:\n");
+    sptDumpIndexArray(mode_order_X2, nmodes_X2, stdout);
+
+    /// Shuffle tensor indices according to mode_order_X
+    sptSparseTensorShuffleModes(X, mode_order_X);   // tc1-s1
+    sptSparseTensorShuffleModes(X2, mode_order_X2);   // tc2-s1
+    // printf("Permuted X:\n");
+    // sptAssert(sptDumpSparseTensor(X, 0, stdout) == 0);
+
+    for(sptIndex m = 0; m < nmodes_X; ++m) mode_order_X[m] = m; // reset mode_order
+    for(sptIndex m = 0; m < nmodes_X2; ++m) mode_order_X2[m] = m; // reset mode_order
+    // sptSparseTensorSortIndexCmode(X, 1, 1, 1, 2);
+    sptSparseTensorSortIndex(X, 1, tk);   // tc1-s1
+    
+    sptStopTimer(timer);
+    double X_time = sptElapsedTime(timer);
+    total_time += X_time;
+    sptStartTimer(timer);
+
+    //sptAssert(sptDumpSparseTensor(Y, 0, stdout) == 0);
+    sptIndex * mode_order_Y = (sptIndex *)malloc(nmodes_Y * sizeof(sptIndex));
+    sptIndex * mode_order_Y2 = (sptIndex *)malloc(nmodes_Y2 * sizeof(sptIndex));
+    ci = 0;
+    fi = num_cmodes;
+    ci2 = 0;
+    fi2 = num_cmodes_2;
+    for(sptIndex m = 0; m < nmodes_Y; ++m) {
+        if(sptInArray(cmodes_Y, num_cmodes, m) == -1) { // m is not a contraction mode
+            mode_order_Y[fi] = m;
+            ++ fi;
+        }
+    }
+    sptAssert(fi == nmodes_Y);
+    for(sptIndex m = 0; m < nmodes_Y2; ++m) {
+        if(sptInArray(cmodes_Y2, num_cmodes_2, m) == -1) { // m is not a contraction mode
+            mode_order_Y2[fi2] = m;
+            ++ fi2;
+        }
+    }
+    sptAssert(fi2 == nmodes_Y2);
+    
+    /// Copy the contract modes while keeping the contraction mode order
+    for(sptIndex m = 0; m < num_cmodes; ++m) {
+        mode_order_Y[ci] = cmodes_Y[m];
+        ++ ci;
+    }
+    sptAssert(ci == num_cmodes);
+    for(sptIndex m = 0; m < num_cmodes_2; ++m) {
+        mode_order_Y2[ci2] = cmodes_Y2[m];
+        ++ ci2;
+    }
+    sptAssert(ci2 == num_cmodes_2);
+    printf("mode_order_Y2: \n");
+    sptDumpIndexArray(mode_order_Y2, nmodes_Y2, stdout);
+
+    // tc1-s1
+    table_t *Y_ht, *Y2_ht;
+    unsigned int Y_ht_size = Y->nnz;
+    unsigned int Y2_ht_size = Y2->nnz;
+    Y_ht = tensor_htCreate(Y_ht_size);
+    Y2_ht = tensor_htCreate(Y2_ht_size);
+    
+    omp_lock_t *locks = (omp_lock_t *)malloc(Y_ht_size*sizeof(omp_lock_t));
+    for(size_t i = 0; i < Y_ht_size; i++) omp_init_lock(&locks[i]);
+    omp_lock_t *locks_2 = (omp_lock_t *)malloc(Y2_ht_size*sizeof(omp_lock_t));
+    for(size_t i = 0; i < Y2_ht_size; i++) omp_init_lock(&locks_2[i]);
+
+    sptIndex* Y_cmode_inds = (sptIndex*)malloc((num_cmodes + 1) * sizeof(sptIndex));
+    for(sptIndex i = 0; i < num_cmodes + 1; i++) Y_cmode_inds[i] = 1;
+    for(sptIndex i = 0; i < num_cmodes;i++){
+        for(sptIndex j = i; j < num_cmodes;j++)
+            Y_cmode_inds[i] = Y_cmode_inds[i] * Y->ndims[mode_order_Y[j]];    
+    }
+    sptIndex* Y2_cmode_inds = (sptIndex*)malloc((num_cmodes_2 + 1) * sizeof(sptIndex));
+    for(sptIndex i = 0; i < num_cmodes_2 + 1; i++) Y2_cmode_inds[i] = 1;
+    for(sptIndex i = 0; i < num_cmodes_2; i++){
+        for(sptIndex j = i; j < num_cmodes_2; j++)
+            Y2_cmode_inds[i] = Y2_cmode_inds[i] * Y2->ndims[mode_order_Y2[j]];    
+    }
+
+    sptIndex Y_num_fmodes = nmodes_Y - num_cmodes;
+    sptIndex* Y_fmode_inds = (sptIndex*)malloc((Y_num_fmodes + 1) * sizeof(sptIndex));
+    for(sptIndex i = 0; i < Y_num_fmodes + 1; i++) Y_fmode_inds[i] = 1;
+    for(sptIndex i = 0; i < Y_num_fmodes;i++){
+        for(sptIndex j = i; j < Y_num_fmodes;j++)
+            Y_fmode_inds[i] = Y_fmode_inds[i] * Y->ndims[mode_order_Y[j + num_cmodes]]; 
+    }
+    sptIndex Y2_num_fmodes = nmodes_Y2 - num_cmodes_2;
+    sptIndex* Y2_fmode_inds = (sptIndex*)malloc((Y2_num_fmodes + 1) * sizeof(sptIndex));
+    for(sptIndex i = 0; i < Y2_num_fmodes + 1; i++) Y2_fmode_inds[i] = 1;
+    for(sptIndex i = 0; i < Y2_num_fmodes;i++){
+        for(sptIndex j = i; j < Y2_num_fmodes;j++)
+            Y2_fmode_inds[i] = Y2_fmode_inds[i] * Y2->ndims[mode_order_Y2[j + num_cmodes_2]]; 
+    }
+
+    sptNnzIndex Y_nnz = Y->nnz, Y2_nnz = Y2->nnz;
+
+    buildHtY(tk, Y_ht, Y_num_fmodes, mode_order_Y, num_cmodes, Y_cmode_inds, Y_fmode_inds, Y_nnz, Y, locks);    // tc1-s1
+
+    for(size_t i = 0; i < Y_ht_size; i++) omp_destroy_lock(&locks[i]);
+    for(size_t i = 0; i < Y2_ht_size; i++) omp_destroy_lock(&locks_2[i]);
+
+    sptStopTimer(timer);     
+    total_time += sptElapsedTime(timer);
+    printf("[Input Processing]: %.6f s\n", sptElapsedTime(timer) + X_time);
+
+    sptNnzIndexVector fidx_X, fidx_X2;
+    /// Set indices for free modes, use X
+    sptSparseTensorSetIndices(X, mode_order_X, nmodes_X - num_cmodes, &fidx_X);
+    sptSparseTensorSetIndices(X2, mode_order_X2, nmodes_X2 - num_cmodes_2, &fidx_X2);
+    // printf("fidx_X: \n");
+    // sptDumpNnzIndexVector(&fidx_X, stdout);
+    // printf("fidx_X2: \n");
+    // sptDumpNnzIndexVector(&fidx_X2, stdout);
+
+    /// Allocate the output tensor
+    sptIndex nmodes_Z = nmodes_X + nmodes_Y - 2 * num_cmodes;
+    sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
+    spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
+    for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {
+        ndims_buf[m] = X->ndims[m];
+    }
+    /// For non-sorted Y 
+    for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
+        ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[mode_order_Y[m]];
+    }
+    printf("ndims_buf: \n");
+    sptDumpIndexArray(ndims_buf, nmodes_Z, stdout);
+    sptIndex nmodes_Z2 = nmodes_X2 + nmodes_Y2 - 2 * num_cmodes_2;
+    sptIndex *ndims_buf_2 = malloc(nmodes_Z2 * sizeof *ndims_buf_2);
+    spt_CheckOSError(!ndims_buf_2, "CPU  SpTns * SpTns");
+    for(sptIndex m = 0; m < nmodes_X2 - num_cmodes_2; ++m) {
+        ndims_buf_2[m] = X2->ndims[m];
+    }
+    /// For non-sorted Y 
+    for(sptIndex m = num_cmodes_2; m < nmodes_Y2; ++m) {
+        ndims_buf_2[(m - num_cmodes_2) + nmodes_X2 - num_cmodes_2] = Y2->ndims[mode_order_Y2[m]];
+    }
+    printf("ndims_buf_2: \n");
+    sptDumpIndexArray(ndims_buf_2, nmodes_Z2, stdout);
+
+    /// Each thread with a local Z_tmp
+    sptSparseTensor *Z_tmp = malloc(tk * sizeof (sptSparseTensor));
+    for (int i = 0; i < tk; i++){
+        result = sptNewSparseTensor(&(Z_tmp[i]), nmodes_Z, ndims_buf);
+    }
+    sptSparseTensor *Z2_tmp = malloc(tk * sizeof (sptSparseTensor));
+    for (int i = 0; i < tk; i++){
+        result = sptNewSparseTensor(&(Z2_tmp[i]), nmodes_Z2, ndims_buf_2);
+    }
+    spt_CheckError(result, "CPU  SpTns * SpTns", NULL);
+    
+    sptTimer timer_SPA, timer_SPA_2;
+    double time_prep = 0, time_prep_2 = 0;
+    double time_index_search = 0, time_index_search_2 = 0;
+    double time_spa = 0, time_spa_2 = 0;
+    double time_accumulate_z = 0, time_accumulate_z2 = 0;
+    sptNewTimer(&timer_SPA, 0);
+    sptNewTimer(&timer_SPA_2, 0);
+    sptStartTimer(timer);
+
+    // For the progress
+    int fx_counter = fidx_X.len;
+    int fx_counter_2 = fidx_X2.len;
+
+    // For stage parallelism
+    int tk_other = 8;
+    int new_tk = tk+tk_other;
+    omp_set_num_threads(new_tk);
+    omp_set_nested(1);
+    #pragma omp parallel sections num_threads(2) shared(Z2_tmp)
+    {
+        #pragma omp section
+        {
+            sptStartTimer(stage1);
+            // TC1: comp
+            computeTC(tk, fidx_X, nmodes_X, nmodes_Y, num_cmodes, Z_tmp, Y_fmode_inds, Y_ht, Y_cmode_inds, fx_counter, timer_SPA, X, &time_prep, &time_index_search, &time_spa, &time_accumulate_z, nmodes_Z);
+            sptStopTimer(stage1);
+        }
+
+        #pragma omp section
+        {
+            // s1,2,3 TC2
+            sptStartTimer(stage2);
+            sptSparseTensorSortIndex(X2, 1, tk_other);   // tc2-s1
+            // printf("X2: \n");
+            // sptAssert(sptDumpSparseTensor(X2, 0, stdout) == 0);
+            // printf("Y2: \n");
+            // sptAssert(sptDumpSparseTensor(Y2, 0, stdout) == 0);
+
+            buildHtY(tk_other, Y2_ht, Y2_num_fmodes, mode_order_Y2, num_cmodes_2, Y2_cmode_inds, Y2_fmode_inds, Y2_nnz, Y2, locks_2);    // tc2-s1
+            computeTC(tk, fidx_X2, nmodes_X2, nmodes_Y2, num_cmodes_2, Z2_tmp, Y2_fmode_inds, Y2_ht, Y2_cmode_inds, fx_counter_2, timer_SPA_2, X2, &time_prep_2, &time_index_search_2, &time_spa_2, &time_accumulate_z2,nmodes_Z2); 
+            sptStopTimer(stage2);
+        }
+    }
+    omp_set_num_threads(tk);
+
+    sptStopTimer(timer);
+    double main_computation = sptElapsedTime(timer);
+    total_time += main_computation;
+    double spa_total = time_prep + time_index_search + time_spa + time_accumulate_z;
+    printf("[Index Search]: %.6f s\n", (time_index_search + time_prep)/spa_total * main_computation);
+    printf("[Accumulation]: %.6f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
+
+    sptStartTimer(timer);
+    /// Append Z_tmp to Z
+    // Calculate the indecies of Z
+    unsigned long long* Z_tmp_start = (unsigned long long*) malloc( (tk + 1) * sizeof(unsigned long long));
+    unsigned long long* Z2_tmp_start = (unsigned long long*) malloc( (tk + 1) * sizeof(unsigned long long));
+    unsigned long long Z_total_size = 0, Z2_total_size = 0;
+    sptSparseTensor *Z_input, *Z2_input;
+
+    Z_tmp_start[0] = 0;
+    for(int i = 0; i < tk; i++){
+        Z_tmp_start[i + 1] = Z_tmp[i].nnz + Z_tmp_start[i];
+        Z_total_size +=  Z_tmp[i].nnz;
+        //printf("Z_tmp_start[i + 1]: %lu, i: %d\n", Z_tmp_start[i + 1], i);
+    }
+    //printf("%d\n", Z_total_size);
+    sptAssert(Z_tmp_start[tk] == Z_total_size);
+    result = sptNewSparseTensorWithSize(Z, nmodes_Z, ndims_buf, Z_total_size); 
+
+    printf("Z2_tmp:\n");
+    for (int i = 0; i < tk; i++) {
+        printf("%d: %lu\n", i, Z2_tmp[i].nnz);
+        // result = sptDumpSparseTensor(&(Z2_tmp[i]), 0, stdout);
+    }
+    Z2_tmp_start[0] = 0;
+    for(int i = 0; i < tk; i++){
+        Z2_tmp_start[i + 1] = Z2_tmp[i].nnz + Z2_tmp_start[i];
+        Z2_total_size +=  Z2_tmp[i].nnz;
+        printf("Z2_tmp_start[i + 1]: %llu, i: %d\n", Z2_tmp_start[i + 1], i);
+    }
+    sptAssert(Z2_tmp_start[tk] == Z2_total_size);
+    result = sptNewSparseTensorWithSize(Z2, nmodes_Z2, ndims_buf_2, Z2_total_size); 
+    printf("nmodes_Z2: %u\n", nmodes_Z2);
+    // printf("Init Z2: \n");
+    // sptDumpSparseTensor(Z2, 0, stdout);
+
+    writeback(Z_tmp, Z, nmodes_Z, Z_tmp_start, tk); // tc1
     sptStopTimer(timer);
     total_time += sptPrintElapsedTime(timer, "Writeback");
 
     sptStartTimer(timer);
-    if(output_sorting == 1){
-        sptSparseTensorSortIndex(Z, 1, tk);
+    double summation_time = 0;
+    printf("tk_other: %d\n", tk_other); fflush(stdout);
+    omp_set_num_threads(new_tk);
+    omp_set_nested(1);
+    
+    #pragma omp parallel sections num_threads(2) shared(Z2_tmp,Z2_tmp_start)
+    {
+        #pragma omp section
+        {
+            sptStartTimer(stage1);
+            // TC1 summation
+            summation(nmodes_Z, Z_tmp, Z_input, tk, timer, &summation_time, ndims_buf, Z_total_size, Z_tmp_start, Z, opt_summation);  // s5
+            // printf("Summed Z: \n");
+            // sptDumpSparseTensor(Z, 0, stdout);
+            if(output_sorting == 1) sptSparseTensorSortIndex(Z, 1, tk); // s6
+            // printf("Sorted Z: \n");
+            // sptDumpSparseTensor(Z, 0, stdout);
+            sptStopTimer(stage1);
+        }
+
+        #pragma omp section
+        {
+            sptStartTimer(stage2);
+            // writeback(Z2_tmp, Z2, nmodes_Z2, Z2_tmp_start, tk_other); // tc2
+            // printf("nmodes_Z2: %u\n", nmodes_Z2);
+            // printf("Z2_tmp_start:\n");
+            // for(int i=0; i< (tk + 1); ++i)
+            //     printf("%llu, ", Z2_tmp_start[i]);
+            // printf("\nZ2: \n");
+            // sptDumpSparseTensor(Z2, 0, stdout);
+            // summation(nmodes_Z, Z_tmp_dram2, Z_tmp_optane2, Z_input2, node_size, tk, timer, &summation_time, dram_node, optane_node, numa_node, hotspot, ndims_buf, Z_total_size, Z_tmp_start, &Z2, opt_summation);  
+            // if(output_sorting == 1) sptSparseTensorSortIndex(Z2, 1, tk);
+            sptStopTimer(stage2);
+
+        }
     }
+    omp_set_num_threads(tk); 
     sptStopTimer(timer);
-    total_time += sptPrintElapsedTime(timer, "Output Sorting");
+    total_time += sptPrintElapsedTime(timer, "Writeback+summation+sorting");
     printf("[Total time]: %.6f s\n", total_time);
     printf("\n");
-}  
 
-//4: HTY + HTA on HM
-if(experiment_modes == 4){
-    int result;
-    int dram_node;
-    int optane_node;
-    sscanf(getenv("DRAM_NODE"), "%d", &dram_node);
-    sscanf(getenv("OPTANE_NODE"), "%d", &optane_node);
-    int numa_node = dram_node;
-
-    sptIndex nmodes_X = X->nmodes;
-    sptIndex nmodes_Y = Y->nmodes;
-    sptTimer timer;
-    double total_time = 0;
-    sptNewTimer(&timer, 0);
-
-    if(num_cmodes >= X->nmodes) {
-        spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
-    }
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        if(X->ndims[cmodes_X[m]] != Y->ndims[cmodes_Y[m]]) {
-            spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
-        }
-    }
-
-    sptStartTimer(timer);
-    sptIndex * mode_order_X = (sptIndex *)malloc(nmodes_X * sizeof(sptIndex));
-    sptIndex ci = nmodes_X - num_cmodes, fi = 0;
-    for(sptIndex m = 0; m < nmodes_X; ++m) {
-        if(sptInArray(cmodes_X, num_cmodes, m) == -1) {
-            mode_order_X[fi] = m;
-            ++ fi;
-        }
-    }
-    sptAssert(fi == nmodes_X - num_cmodes);
-    /// Copy the contract modes while keeping the contraction mode order
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        mode_order_X[ci] = cmodes_X[m];
-        ++ ci;
-    }
-    sptAssert(ci == nmodes_X);
-    /// Shuffle tensor indices according to mode_order_X
-    sptSparseTensorShuffleModes(X, mode_order_X);
-
-    for(sptIndex m = 0; m < nmodes_X; ++m) mode_order_X[m] = m; // reset mode_order
-    sptSparseTensorSortIndex(X, 1, tk);
-    
-    sptStopTimer(timer);
-    double X_time = sptElapsedTime(timer);
-    total_time += X_time;
-    sptStartTimer(timer);
-
-    unsigned long long tmp_dram_size = 0;
-    FILE *fp;
-    char *s;
-    char path[1035];
-    unsigned long long  i1, i2, i3, i4, i5, i6, i7, i8;
-    fp = popen("numactl -H", "r");  
-    while (fgets(path, sizeof(path), fp) != NULL) {  
-        s = strstr(path, "node 0 free:");      
-        if (s != NULL)                     
-            if (2 == sscanf(s, "%*[^0123456789]%llu%*[^0123456789]%llu", &i1, &i2)){
-                tmp_dram_size = i2 * 1024 * 1024; 
-                //printf("test: %llu B\n", dram_cap);
-                break;
-            }
-    }
-    pclose(fp);
-
-    unsigned int node_size = sizeof(unsigned long long) + sizeof(unsigned int) + sizeof(unsigned int) + sizeof(unsigned long long*) + sizeof(sptValue*) + sizeof(tensor_node_t*);
-    unsigned long long Y_upper_size = node_size * (Y->nnz + Y->nnz);
-    //printf("%lu\n", Y_upper_size);
-    if (Y_upper_size < tmp_dram_size) numa_set_preferred(dram_node);
-    else numa_set_preferred(numa_node);
-
-    //sptAssert(sptDumpSparseTensor(Y, 0, stdout) == 0);
-    sptIndex * mode_order_Y = (sptIndex *)malloc(nmodes_Y * sizeof(sptIndex));
-    ci = 0;
-    fi = num_cmodes;
-    for(sptIndex m = 0; m < nmodes_Y; ++m) {
-        if(sptInArray(cmodes_Y, num_cmodes, m) == -1) { 
-            mode_order_Y[fi] = m;
-            ++ fi;
-        }
-    }
-    sptAssert(fi == nmodes_Y);
-
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        mode_order_Y[ci] = cmodes_Y[m];
-        ++ ci;
-    }
-    sptAssert(ci == num_cmodes);
-    //for(sptIndex m = 0; m < nmodes_Y; ++m) 
-    //    printf ("mode_order_Y[m]: %d\n", mode_order_Y[m]);
-
-    table_t *Y_ht;
-    unsigned int Y_ht_size = Y->nnz;
-    Y_ht = tensor_htCreate(Y_ht_size);    
-    
-    omp_lock_t *locks = (omp_lock_t *)malloc(Y_ht_size*sizeof(omp_lock_t));
-    for(size_t i = 0; i < Y_ht_size; i++) {
-        omp_init_lock(&locks[i]);
-    }
-
-    sptIndex* Y_cmode_inds = (sptIndex*)malloc((num_cmodes + 1) * sizeof(sptIndex));
-    for(sptIndex i = 0; i < num_cmodes + 1; i++) Y_cmode_inds[i] = 1;
-    for(sptIndex i = 0; i < num_cmodes;i++){
-        for(sptIndex j = i; j < num_cmodes;j++)
-            Y_cmode_inds[i] = Y_cmode_inds[i] * Y->ndims[mode_order_Y[j]];    
-    }
-    //for(sptIndex i = 0; i <= num_cmodes;i++)
-    //    printf("%d ", Y_cmode_inds[i]);
-    //printf("\n");
-
-    sptIndex Y_num_fmodes = nmodes_Y - num_cmodes;
-    sptIndex* Y_fmode_inds = (sptIndex*)malloc((Y_num_fmodes + 1) * sizeof(sptIndex));
-    //sptIndex* Y_fmode_inds = (sptIndex*) numa_alloc_onnode((Y_num_fmodes + 1) * sizeof(sptIndex), numa_node);
-    for(sptIndex i = 0; i < Y_num_fmodes + 1; i++) Y_fmode_inds[i] = 1;
-    for(sptIndex i = 0; i < Y_num_fmodes;i++){
-        for(sptIndex j = i; j < Y_num_fmodes;j++)
-            Y_fmode_inds[i] = Y_fmode_inds[i] * Y->ndims[mode_order_Y[j + num_cmodes]]; 
-    }
-    //for(sptIndex i = 0; i <= Y_num_fmodes;i++)
-    //    printf("%d ", Y_fmode_inds[i]);
-    //printf("\n");
-
-    sptNnzIndex Y_nnz = Y->nnz;
-    unsigned int Y_free_upper = 0;
-    
-#pragma omp parallel for schedule(static) num_threads(tk) shared(Y_ht, Y_num_fmodes, mode_order_Y, num_cmodes, Y_cmode_inds, Y_fmode_inds)
-    for(sptNnzIndex i = 0; i < Y_nnz; i++){
-        unsigned long long key_cmodes = 0;    
-        for(sptIndex m = 0; m < num_cmodes; ++m)
-            key_cmodes += Y->inds[mode_order_Y[m]].data[i] * Y_cmode_inds[m + 1];    
-
-        unsigned long long key_fmodes = 0;    
-        for(sptIndex m = 0; m < Y_num_fmodes; ++m)
-            key_fmodes += Y->inds[mode_order_Y[m+num_cmodes]].data[i] * Y_fmode_inds[m + 1];
-        unsigned pos = tensor_htHashCode(key_cmodes);
-        omp_set_lock(&locks[pos]);    
-        tensor_value Y_val = tensor_htGet(Y_ht, key_cmodes);
-        //printf("Y_val.len: %d\n", Y_val.len); 
-        unsigned int Y_len = Y_val.len;
-        if(Y_len == 0) {
-            tensor_htInsert(Y_ht, key_cmodes, key_fmodes, Y->values.data[i]);
-        }
-        else  {
-            tensor_htUpdate(Y_ht, key_cmodes, key_fmodes, Y->values.data[i]);
-            if (Y_len >= Y_free_upper) Y_free_upper = Y_len + 1;
-            //for(int i = 0; i < Y_val.len; i++)
-            //    printf("key_FM: %lu, Y_val: %f\n", Y_val.key_FM[i], Y_val.val[i]); 
-        }
-        omp_unset_lock(&locks[pos]);    
-        //sprintf("i: %d, key_cmodes: %lu, key_fmodes: %lu\n", i, key_cmodes, key_fmodes);
-    }
-
-    for(size_t i = 0; i < Y_ht_size; i++) {
-        omp_destroy_lock(&locks[i]);
-    }  
-
-    sptStopTimer(timer);     
-    total_time += sptElapsedTime(timer);  
-    printf("[Input Processing]: %.2f s\n", sptElapsedTime(timer) + X_time );
-
-
-    sptStartTimer(timer);
-
-    //printf("Sorted X:\n");
-    //sptSparseTensorStatus(X, stdout);
-    //sptAssert(sptDumpSparseTensor(X, 0, stdout) == 0);
-    //printf("Sorted Y:\n");
-    //sptSparseTensorStatus(Y, stdout);
-    //sptAssert(sptDumpSparseTensor(Y, 0, stdout) == 0);
-
-    /// Set fidx_X: indexing the combined free indices;
-    sptNnzIndexVector fidx_X;
-    //sptStartTimer(timer);
-    /// Set indices for free modes, use X
-    sptSparseTensorSetIndices(X, mode_order_X, nmodes_X - num_cmodes, &fidx_X);
-
-    sptIndex nmodes_Z = nmodes_X + nmodes_Y - 2 * num_cmodes;
-    sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
-    spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
-    for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {
-        ndims_buf[m] = X->ndims[m];
-    }
-
-    /// For sorted Y 
-    //for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
-    //    ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[m];
-    //}
-    /// For non-sorted Y 
-    for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
-        ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[mode_order_Y[m]];
-    }
-    free(mode_order_X);
-    free(mode_order_Y);
-
-    // sptSparseTensor *Z_tmp = malloc(tk * sizeof (sptSparseTensor));
-    sptSparseTensor *Z_tmp_dram = numa_alloc_onnode(tk * sizeof (sptSparseTensor), dram_node);
-    sptSparseTensor *Z_tmp_optane = numa_alloc_onnode(tk * sizeof (sptSparseTensor), optane_node);
-
-    for (int i = 0; i < tk; i++){
-        //result = sptNewSparseTensor(&(Z_tmp[i]), nmodes_Z, ndims_buf);
-        result = sptNewSparseTensorNuma(&(Z_tmp_dram[i]), nmodes_Z, ndims_buf, dram_node);
-        result = sptNewSparseTensorNuma(&(Z_tmp_optane[i]), nmodes_Z, ndims_buf, optane_node);
-    }
-
-    //free(ndims_buf);
-    spt_CheckError(result, "CPU  SpTns * SpTns", NULL);
-    
-    unsigned long long dram_cur = 0;
-    unsigned long long dram_cap = 0; 
-    unsigned long long Z_mem = 0;
-
-    fp = popen("numactl -H", "r");  // Open the command for reading 
-    while (fgets(path, sizeof(path), fp) != NULL) {  // Read the output a line at a time - output it. 
-        s = strstr(path, "node 0 free:");      // Search for string "hassasin" in buff
-        if (s != NULL)                     // If successful then s now points at "hassasin"
-            if (2 == sscanf(s, "%*[^0123456789]%llu%*[^0123456789]%llu", &i1, &i2)){
-                //printf("System DRAM memory: %lu MB\n", i2);
-                dram_cap = i2 * 1024 * 1024 / 1.1; // Should be changed into: memory of the current system - X - Y_ht
-                //printf("test: %llu B\n", dram_cap);
-                break;
-            }
-    }
-    pclose(fp);
-
-    sptTimer timer_SPA;
-    double time_prep = 0;
-    double time_free_mode = 0;
-    double time_spa = 0;
-    double time_accumulate_z = 0;
-    sptNewTimer(&timer_SPA, 0);
-
-    // For the progress
-    int fx_counter = fidx_X.len;
-
-#pragma omp parallel for schedule(static) num_threads(tk) shared(fidx_X, nmodes_X, nmodes_Y, num_cmodes, Z_tmp_dram, Z_tmp_optane, Y_fmode_inds, Y_ht, Y_cmode_inds, dram_cap, dram_cur, Z_mem, fx_counter) 
-    for(sptNnzIndex fx_ptr = 0; fx_ptr < fidx_X.len - 1; ++fx_ptr) {    // Loop fiber pointers of X
-        int tid = omp_get_thread_num();
-        fx_counter--;
-        //if (fx_counter % 1000 == 0) printf("Progress: %d\/%d\n", fx_counter, fidx_X.len);
-        if (tid == 0){
-            sptStartTimer(timer_SPA);
-        }
-        sptNnzIndex fx_begin = fidx_X.data[fx_ptr];
-        sptNnzIndex fx_end = fidx_X.data[fx_ptr+1];      
-
-        /// The total number and memory of SPA for one x fiber.
-        unsigned long long num_SPA_upper = 0;
-        unsigned long long mem_SPA_upper = 0;
-        unsigned long long mem_SPA_cur = 0;
-        bool SPA_in_dram = false;
-        /// The total memory of Z_tmp
-        unsigned long long Z_tmp_mem = 0;
-        /// hashtable size
-        const unsigned int ht_size = 10000;
-        sptIndex nmodes_spa = nmodes_Y - num_cmodes;
-        long int nnz_counter = 0;
-        sptIndex current_idx = 0;
-
-        /*for(sptNnzIndex zX = fx_begin; zX < fx_end; ++ zX) {    // Loop nnzs inside a X fiber
-            sptValue valX = X->values.data[zX];
-            //printf("valX: %f\n", valX);
-            sptIndexVector cmode_index_X; 
-            sptNewIndexVector(&cmode_index_X, num_cmodes, num_cmodes);
-            for(sptIndex i = 0; i < num_cmodes; ++i){
-                cmode_index_X.data[i] = X->inds[nmodes_X - num_cmodes + i].data[zX];
-                //printf("\ncmode_index_X[%lu]: %lu\n", i, cmode_index_X.data[i]);
-            }
-
-            unsigned long long key_cmodes = 0;    
-            for(sptIndex m = 0; m < num_cmodes; ++m)
-                key_cmodes += cmode_index_X.data[m] * Y_cmode_inds[m + 1];
-            //printf("key_cmodes: %d\n", key_cmodes);    
-
-            tensor_value Y_val = tensor_htGet(Y_ht, key_cmodes);  
-            //printf("Y_val.len: %d\n", Y_val.len);
-            unsigned int my_len = Y_val.len;
-            if(my_len == 0) continue;
-            num_SPA_upper += my_len;
-        }*/
-
-        mem_SPA_upper = (Y_free_upper + fx_end - fx_begin) * sizeof(node_t) + sizeof(node_t*) * ht_size + sizeof(table_t);
-        if(mem_SPA_upper + dram_cur <= dram_cap) { // spa in dram
-            dram_cur += mem_SPA_upper;
-            SPA_in_dram = true;
-        }
-
-        table_t *ht;
-        ht = htCreate(ht_size);
-        mem_SPA_cur = sizeof( node_t*)*ht_size + sizeof( table_t);
-
-        if (tid == 0){
-            sptStopTimer(timer_SPA);
-            time_prep += sptElapsedTime(timer_SPA);
-        }
-
-        for(sptNnzIndex zX = fx_begin; zX < fx_end; ++ zX) {    // Loop nnzs inside a X fiber
-            if (tid == 0){
-                sptStartTimer(timer_SPA);       
-            }
-            sptValue valX = X->values.data[zX];
-            //printf("valX: %f\n", valX);
-            sptIndexVector cmode_index_X; 
-            sptNewIndexVector(&cmode_index_X, num_cmodes, num_cmodes);
-            for(sptIndex i = 0; i < num_cmodes; ++i){
-                cmode_index_X.data[i] = X->inds[nmodes_X - num_cmodes + i].data[zX];
-                //printf("\ncmode_index_X[%lu]: %lu\n", i, cmode_index_X.data[i]);
-            }
-
-            unsigned long long key_cmodes = 0;    
-            for(sptIndex m = 0; m < num_cmodes; ++m)
-                key_cmodes += cmode_index_X.data[m] * Y_cmode_inds[m + 1];
-            //printf("key_cmodes: %d\n", key_cmodes);    
-
-            tensor_value Y_val = tensor_htGet(Y_ht, key_cmodes);  
-            //printf("Y_val.len: %d\n", Y_val.len);
-            unsigned int my_len = Y_val.len;
-            if (tid == 0){
-                sptStopTimer(timer_SPA);
-                time_free_mode += sptElapsedTime(timer_SPA);
-            }
-            if(my_len == 0) continue;
-
-            if (tid == 0){
-                sptStartTimer(timer_SPA);               
-            }
-            for(int i = 0; i < my_len; i++){
-                unsigned long long fmode =  Y_val.key_FM[i];
-                //printf("i: %d, Y_val.key_FM[i]: %lu, Y_val.val[i]: %f\n", i, Y_val.key_FM[i], Y_val.val[i]);
-                sptValue spa_val = htGet(ht, fmode);
-                float result = Y_val.val[i] * valX;
-                if(spa_val == LONG_MIN) {
-                    htInsert(ht, fmode, result);
-                    mem_SPA_cur += sizeof(node_t);
-                    nnz_counter++;
-                }
-                else    
-                    htUpdate(ht, fmode, spa_val + result);
-            }
-
-            if (tid == 0){
-                sptStopTimer(timer_SPA);
-                time_spa += sptElapsedTime(timer_SPA);
-            }
-            
-        }  
-
-        if (tid == 0){
-            sptStartTimer(timer_SPA);     
-        }
-
-        if(SPA_in_dram) dram_cur = dram_cur - mem_SPA_upper + mem_SPA_cur;
-        Z_tmp_mem = nnz_counter * (nmodes_Z * sizeof(sptIndex) + sizeof(sptValue));
-        Z_mem += Z_tmp_mem;
-
-        if(Z_tmp_mem + dram_cur <= dram_cap && (tid % 7 != 0)){ 
-            dram_cur += Z_tmp_mem;
-            for(int i = 0; i < ht->size; i++){
-                node_t *temp = ht->list[i];
-                while(temp){
-                    unsigned long long idx_tmp = temp->key;
-                    //nnz_counter++;
-                    for(sptIndex m = 0; m < nmodes_spa; ++m) {                        
-                        //sptAppendIndexVector(&Z_tmp_dram[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
-                        sptAppendIndexVectorNuma(&Z_tmp_dram[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
-                    }
-                    //printf("val: %f\n", temp->val);
-                    //sptAppendValueVector(&Z_tmp_dram[tid].values, temp->val);
-                    sptAppendValueVectorNuma(&Z_tmp_dram[tid].values, temp->val);
-                    node_t* pre = temp;
-                    temp = temp->next;
-                    free(pre);
-                    //numa_free(pre, sizeof(node_t));
-                }
-            }
-            Z_tmp_dram[tid].nnz += nnz_counter;
-            for(sptIndex i = 0; i < nnz_counter; ++i) {
-                for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {               
-                    //sptAppendIndexVector(&Z_tmp_dram[tid].inds[m], X->inds[m].data[fx_begin]);
-                    sptAppendIndexVectorNuma(&Z_tmp_dram[tid].inds[m], X->inds[m].data[fx_begin]);
-                }
-            }
-        }
-        else{ // append elements to Z_tmp_optane in Optane
-            for(int i = 0; i < ht->size; i++){
-                node_t *temp = ht->list[i];
-                while(temp){
-                    unsigned long long idx_tmp = temp->key;
-                    //nnz_counter++;
-                    for(sptIndex m = 0; m < nmodes_spa; ++m) {                        
-                        //sptAppendIndexVector(&Z_tmp_optane[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
-                        sptAppendIndexVectorNuma(&Z_tmp_optane[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
-                    }
-                    //printf("val: %f\n", temp->val);
-                    //sptAppendValueVector(&Z_tmp_optane[tid].values, temp->val);
-                    sptAppendValueVectorNuma(&Z_tmp_optane[tid].values, temp->val);
-                    node_t* pre = temp;
-                    temp = temp->next;
-                    free(pre);
-                    //numa_free(pre, sizeof(node_t));
-                }
-            }
-            Z_tmp_optane[tid].nnz += nnz_counter;
-            for(sptIndex i = 0; i < nnz_counter; ++i) {
-                for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {               
-                    //sptAppendIndexVector(&Z_tmp_optane[tid].inds[m], X->inds[m].data[fx_begin]);
-                    sptAppendIndexVectorNuma(&Z_tmp_optane[tid].inds[m], X->inds[m].data[fx_begin]);
-                }
-            }
-        }
-        htFree(ht);
-        if(SPA_in_dram) dram_cur -= mem_SPA_cur;
-
-        if (tid == 0){
-            sptStopTimer(timer_SPA);
-            time_accumulate_z += sptElapsedTime(timer_SPA);
-        }
-        //printf("Z:\n");
-        //sptDumpSparseTensor(Z, 0, stdout);
-    }   // End Loop fiber pointers of X
-
-    //sptAssert(sptDumpSparseTensor(Z, 0, stdout) == 0);
-
-    sptStopTimer(timer);
-    double main_computation = sptElapsedTime(timer);
-    total_time += main_computation;
-    double spa_total = time_prep + time_free_mode + time_spa + time_accumulate_z;
-    printf("[Index Search]: %.2f s\n", (time_free_mode + time_prep)/spa_total * main_computation);
-    printf("[Accumulation]: %.2f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
-
-    sptStartTimer(timer);
-    if(Z_mem + dram_cur < dram_cap) numa_node = dram_node;
-
-    unsigned long long* Z_tmp_start = (unsigned long long*) malloc( (tk + 1) * sizeof(unsigned long long));
-    unsigned long long Z_total_size = 0;
-
-    Z_tmp_start[0] = 0;
-    for(int i = 0; i < tk; i++){
-        Z_tmp_start[i + 1] = Z_tmp_dram[i].nnz + Z_tmp_optane[i].nnz +  Z_tmp_start[i];
-        Z_total_size +=  Z_tmp_dram[i].nnz + Z_tmp_optane[i].nnz;
-        //printf("Z_tmp_start[i + 1]: %lu, i: %d\n", Z_tmp_start[i + 1], i);
-    }
-
-    result = sptNewSparseTensorWithSizeNuma(Z, nmodes_Z, ndims_buf, numa_node, Z_total_size); 
-    //result = sptNewSparseTensorWithSize(Z, nmodes_Z, ndims_buf, Z_total_size); 
-
-#pragma omp parallel for schedule(static) num_threads(tk) shared(Z_tmp_dram, Z_tmp_optane, Z, nmodes_Z, Z_tmp_start)
-    for(int i = 0; i < tk; i++){
-        int tid = omp_get_thread_num();
-        if(Z_tmp_dram[tid].nnz > 0){
-            for(sptIndex m = 0; m < nmodes_Z; ++m) 
-                sptAppendIndexVectorWithVectorStartFromNuma(&Z->inds[m], &Z_tmp_dram[tid].inds[m], Z_tmp_start[tid]);        
-            sptAppendValueVectorWithVectorStartFromNuma(&Z->values, &Z_tmp_dram[tid].values, Z_tmp_start[tid]);  
-        }
-        if(Z_tmp_optane[tid].nnz > 0){
-            for(sptIndex m = 0; m < nmodes_Z; ++m)  
-                sptAppendIndexVectorWithVectorStartFromNuma(&Z->inds[m], &Z_tmp_optane[tid].inds[m], Z_tmp_start[tid] + Z_tmp_dram[tid].nnz);       
-            sptAppendValueVectorWithVectorStartFromNuma(&Z->values, &Z_tmp_optane[tid].values, Z_tmp_start[tid] + Z_tmp_dram[tid].nnz);   
-        }
-    }    
- 
-    sptStopTimer(timer);
-
-    total_time += sptPrintElapsedTime(timer, "Writeback");
-    sptStartTimer(timer);
-
-    sptSparseTensorSortIndex(Z, 1, tk);
-
-    sptStopTimer(timer);
-    total_time += sptPrintElapsedTime(timer, "Output Sorting");
-    printf("[Total time]: %.2f s\n", total_time);
-    //system("numactl -H");
-    printf("\n");
-    }
-
-if(experiment_modes == 5){
-    int result;
-    int dram_node;
-    int optane_node;
-    sscanf(getenv("DRAM_NODE"), "%d", &dram_node);
-    sscanf(getenv("OPTANE_NODE"), "%d", &optane_node);
-    int numa_node = dram_node;
-
-    sptIndex nmodes_X = X->nmodes;
-    sptIndex nmodes_Y = Y->nmodes;
-    sptTimer timer;
-    double total_time = 0;
-    sptNewTimer(&timer, 0);
-
-    if(num_cmodes >= X->nmodes) {
-        spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
-    }
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        if(X->ndims[cmodes_X[m]] != Y->ndims[cmodes_Y[m]]) {
-            spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
-        }
-    }
-
-    sptStartTimer(timer);
-    sptIndex * mode_order_X = (sptIndex *)malloc(nmodes_X * sizeof(sptIndex));
-    sptIndex ci = nmodes_X - num_cmodes, fi = 0;
-    for(sptIndex m = 0; m < nmodes_X; ++m) {
-        if(sptInArray(cmodes_X, num_cmodes, m) == -1) {
-            mode_order_X[fi] = m;
-            ++ fi;
-        }
-    }
-    sptAssert(fi == nmodes_X - num_cmodes);
-    /// Copy the contract modes while keeping the contraction mode order
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        mode_order_X[ci] = cmodes_X[m];
-        ++ ci;
-    }
-    sptAssert(ci == nmodes_X);
-    /// Shuffle tensor indices according to mode_order_X
-    sptSparseTensorShuffleModes(X, mode_order_X);
-
-    for(sptIndex m = 0; m < nmodes_X; ++m) mode_order_X[m] = m; // reset mode_order
-    sptSparseTensorSortIndex(X, 1, tk);
-    
-    sptStopTimer(timer);
-    double X_time = sptElapsedTime(timer);
-    total_time += X_time;
-    sptStartTimer(timer);
-
-    unsigned long long tmp_dram_size = 0;
-    FILE *fp;
-    char *s;
-    char path[1035];
-    unsigned long long  i1, i2, i3, i4, i5, i6, i7, i8;
-    fp = popen("numactl -H", "r");  
-    while (fgets(path, sizeof(path), fp) != NULL) {  
-        s = strstr(path, "node 0 free:");      
-        if (s != NULL)                     
-            if (2 == sscanf(s, "%*[^0123456789]%llu%*[^0123456789]%llu", &i1, &i2)){
-                tmp_dram_size = i2 * 1024 * 1024; 
-                //printf("test: %llu B\n", dram_cap);
-                break;
-            }
-    }
-    pclose(fp);
-
-    unsigned int node_size = sizeof(unsigned long long) + sizeof(unsigned int) + sizeof(unsigned int) + sizeof(unsigned long long*) + sizeof(sptValue*) + sizeof(tensor_node_t*);
-    unsigned long long Y_upper_size = node_size * (Y->nnz + Y->nnz);
-    //printf("%lu\n", Y_upper_size);
-    if (Y_upper_size < tmp_dram_size) numa_set_preferred(dram_node);
-    else numa_set_preferred(numa_node);
-
-    //sptAssert(sptDumpSparseTensor(Y, 0, stdout) == 0);
-    sptIndex * mode_order_Y = (sptIndex *)malloc(nmodes_Y * sizeof(sptIndex));
-    ci = 0;
-    fi = num_cmodes;
-    for(sptIndex m = 0; m < nmodes_Y; ++m) {
-        if(sptInArray(cmodes_Y, num_cmodes, m) == -1) { 
-            mode_order_Y[fi] = m;
-            ++ fi;
-        }
-    }
-    sptAssert(fi == nmodes_Y);
-
-    for(sptIndex m = 0; m < num_cmodes; ++m) {
-        mode_order_Y[ci] = cmodes_Y[m];
-        ++ ci;
-    }
-    sptAssert(ci == num_cmodes);
-    //for(sptIndex m = 0; m < nmodes_Y; ++m) 
-    //    printf ("mode_order_Y[m]: %d\n", mode_order_Y[m]);
-
-    table_t *Y_ht;
-    unsigned int Y_ht_size = Y->nnz;
-    Y_ht = tensor_htCreate(Y_ht_size);    
-    
-    omp_lock_t *locks = (omp_lock_t *)malloc(Y_ht_size*sizeof(omp_lock_t));
-    for(size_t i = 0; i < Y_ht_size; i++) {
-        omp_init_lock(&locks[i]);
-    }
-
-    sptIndex* Y_cmode_inds = (sptIndex*)malloc((num_cmodes + 1) * sizeof(sptIndex));
-    for(sptIndex i = 0; i < num_cmodes + 1; i++) Y_cmode_inds[i] = 1;
-    for(sptIndex i = 0; i < num_cmodes;i++){
-        for(sptIndex j = i; j < num_cmodes;j++)
-            Y_cmode_inds[i] = Y_cmode_inds[i] * Y->ndims[mode_order_Y[j]];    
-    }
-    //for(sptIndex i = 0; i <= num_cmodes;i++)
-    //    printf("%d ", Y_cmode_inds[i]);
-    //printf("\n");
-
-    sptIndex Y_num_fmodes = nmodes_Y - num_cmodes;
-    sptIndex* Y_fmode_inds = (sptIndex*)malloc((Y_num_fmodes + 1) * sizeof(sptIndex));
-    //sptIndex* Y_fmode_inds = (sptIndex*) numa_alloc_onnode((Y_num_fmodes + 1) * sizeof(sptIndex), numa_node);
-    for(sptIndex i = 0; i < Y_num_fmodes + 1; i++) Y_fmode_inds[i] = 1;
-    for(sptIndex i = 0; i < Y_num_fmodes;i++){
-        for(sptIndex j = i; j < Y_num_fmodes;j++)
-            Y_fmode_inds[i] = Y_fmode_inds[i] * Y->ndims[mode_order_Y[j + num_cmodes]]; 
-    }
-    //for(sptIndex i = 0; i <= Y_num_fmodes;i++)
-    //    printf("%d ", Y_fmode_inds[i]);
-    //printf("\n");
-
-    sptNnzIndex Y_nnz = Y->nnz;
-    unsigned int Y_free_upper = 0;
-    
-#pragma omp parallel for schedule(static) num_threads(tk) shared(Y_ht, Y_num_fmodes, mode_order_Y, num_cmodes, Y_cmode_inds, Y_fmode_inds)
-    for(sptNnzIndex i = 0; i < Y_nnz; i++){
-        if(placement == 3) numa_set_preferred(optane_node);
-        unsigned long long key_cmodes = 0;    
-        for(sptIndex m = 0; m < num_cmodes; ++m)
-            key_cmodes += Y->inds[mode_order_Y[m]].data[i] * Y_cmode_inds[m + 1];    
-
-        unsigned long long key_fmodes = 0;    
-        for(sptIndex m = 0; m < Y_num_fmodes; ++m)
-            key_fmodes += Y->inds[mode_order_Y[m+num_cmodes]].data[i] * Y_fmode_inds[m + 1];
-        unsigned pos = tensor_htHashCode(key_cmodes);
-        omp_set_lock(&locks[pos]);    
-        tensor_value Y_val = tensor_htGet(Y_ht, key_cmodes);
-        //printf("Y_val.len: %d\n", Y_val.len); 
-        unsigned int Y_len = Y_val.len;
-        if(Y_len == 0) {
-            tensor_htInsert(Y_ht, key_cmodes, key_fmodes, Y->values.data[i]);
-        }
-        else  {
-            tensor_htUpdate(Y_ht, key_cmodes, key_fmodes, Y->values.data[i]);
-            if (Y_len >= Y_free_upper) Y_free_upper = Y_len + 1;
-            //for(int i = 0; i < Y_val.len; i++)
-            //    printf("key_FM: %lu, Y_val: %f\n", Y_val.key_FM[i], Y_val.val[i]); 
-        }
-        omp_unset_lock(&locks[pos]);    
-        //sprintf("i: %d, key_cmodes: %lu, key_fmodes: %lu\n", i, key_cmodes, key_fmodes);
-    }
-
-    for(size_t i = 0; i < Y_ht_size; i++) {
-        omp_destroy_lock(&locks[i]);
-    }  
-
-    sptStopTimer(timer);     
-    total_time += sptElapsedTime(timer);  
-    printf("[Input Processing]: %.2f s\n", sptElapsedTime(timer) + X_time );
-
-
-    sptStartTimer(timer);
-
-    //printf("Sorted X:\n");
-    //sptSparseTensorStatus(X, stdout);
-    //sptAssert(sptDumpSparseTensor(X, 0, stdout) == 0);
-    //printf("Sorted Y:\n");
-    //sptSparseTensorStatus(Y, stdout);
-    //sptAssert(sptDumpSparseTensor(Y, 0, stdout) == 0);
-
-    /// Set fidx_X: indexing the combined free indices;
-    sptNnzIndexVector fidx_X;
-    //sptStartTimer(timer);
-    /// Set indices for free modes, use X
-    sptSparseTensorSetIndices(X, mode_order_X, nmodes_X - num_cmodes, &fidx_X);
-
-    sptIndex nmodes_Z = nmodes_X + nmodes_Y - 2 * num_cmodes;
-    sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
-    spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
-    for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {
-        ndims_buf[m] = X->ndims[m];
-    }
-
-    /// For sorted Y 
-    //for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
-    //    ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[m];
-    //}
-    /// For non-sorted Y 
-    for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
-        ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[mode_order_Y[m]];
-    }
-    free(mode_order_X);
-    free(mode_order_Y);
-
-    // sptSparseTensor *Z_tmp = malloc(tk * sizeof (sptSparseTensor));
-    sptSparseTensor *Z_tmp_dram, *Z_tmp_optane;
-    if(placement == 5) {
-        Z_tmp_dram = numa_alloc_onnode(tk * sizeof (sptSparseTensor), optane_node);
-        Z_tmp_optane = numa_alloc_onnode(tk * sizeof (sptSparseTensor), optane_node);
-    }
-    else{
-        Z_tmp_dram = numa_alloc_onnode(tk * sizeof (sptSparseTensor), dram_node);
-        Z_tmp_optane = numa_alloc_onnode(tk * sizeof (sptSparseTensor), optane_node);
-    }
-
-    for (int i = 0; i < tk; i++){
-        //result = sptNewSparseTensor(&(Z_tmp[i]), nmodes_Z, ndims_buf);
-        result = sptNewSparseTensorNuma(&(Z_tmp_dram[i]), nmodes_Z, ndims_buf, dram_node);
-        result = sptNewSparseTensorNuma(&(Z_tmp_optane[i]), nmodes_Z, ndims_buf, optane_node);
-    }
-
-    //free(ndims_buf);
-    spt_CheckError(result, "CPU  SpTns * SpTns", NULL);
-    
-    unsigned long long dram_cur = 0;
-    unsigned long long dram_cap = 0; 
-    unsigned long long Z_mem = 0;
-
-    fp = popen("numactl -H", "r");  // Open the command for reading 
-    while (fgets(path, sizeof(path), fp) != NULL) {  // Read the output a line at a time - output it. 
-        s = strstr(path, "node 0 free:");      // Search for string "hassasin" in buff
-        if (s != NULL)                     // If successful then s now points at "hassasin"
-            if (2 == sscanf(s, "%*[^0123456789]%llu%*[^0123456789]%llu", &i1, &i2)){
-                //printf("System DRAM memory: %lu MB\n", i2);
-                dram_cap = i2 * 1024 * 1024 / 1.1; // Should be changed into: memory of the current system - X - Y_ht
-                //printf("test: %llu B\n", dram_cap);
-                break;
-            }
-    }
-    pclose(fp);
-
-    sptTimer timer_SPA;
-    double time_prep = 0;
-    double time_free_mode = 0;
-    double time_spa = 0;
-    double time_accumulate_z = 0;
-    sptNewTimer(&timer_SPA, 0);
-
-    // For the progress
-    int fx_counter = fidx_X.len;
-
-#pragma omp parallel for schedule(static) num_threads(tk) shared(fidx_X, nmodes_X, nmodes_Y, num_cmodes, Z_tmp_dram, Z_tmp_optane, Y_fmode_inds, Y_ht, Y_cmode_inds, dram_cap, dram_cur, Z_mem, fx_counter) 
-    for(sptNnzIndex fx_ptr = 0; fx_ptr < fidx_X.len - 1; ++fx_ptr) {    // Loop fiber pointers of X
-        int tid = omp_get_thread_num();
-        if(placement == 4) numa_set_preferred(optane_node);
-        fx_counter--;
-        //if (fx_counter % 1000 == 0) printf("Progress: %d\/%d\n", fx_counter, fidx_X.len);
-        if (tid == 0){
-            sptStartTimer(timer_SPA);
-        }
-        sptNnzIndex fx_begin = fidx_X.data[fx_ptr];
-        sptNnzIndex fx_end = fidx_X.data[fx_ptr+1];      
-
-        /// The total number and memory of SPA for one x fiber.
-        unsigned long long num_SPA_upper = 0;
-        unsigned long long mem_SPA_upper = 0;
-        unsigned long long mem_SPA_cur = 0;
-        bool SPA_in_dram = false;
-        /// The total memory of Z_tmp
-        unsigned long long Z_tmp_mem = 0;
-        /// hashtable size
-        const unsigned int ht_size = 10000;
-        sptIndex nmodes_spa = nmodes_Y - num_cmodes;
-        long int nnz_counter = 0;
-        sptIndex current_idx = 0;
-
-        /*for(sptNnzIndex zX = fx_begin; zX < fx_end; ++ zX) {    // Loop nnzs inside a X fiber
-            sptValue valX = X->values.data[zX];
-            //printf("valX: %f\n", valX);
-            sptIndexVector cmode_index_X; 
-            sptNewIndexVector(&cmode_index_X, num_cmodes, num_cmodes);
-            for(sptIndex i = 0; i < num_cmodes; ++i){
-                cmode_index_X.data[i] = X->inds[nmodes_X - num_cmodes + i].data[zX];
-                //printf("\ncmode_index_X[%lu]: %lu\n", i, cmode_index_X.data[i]);
-            }
-
-            unsigned long long key_cmodes = 0;    
-            for(sptIndex m = 0; m < num_cmodes; ++m)
-                key_cmodes += cmode_index_X.data[m] * Y_cmode_inds[m + 1];
-            //printf("key_cmodes: %d\n", key_cmodes);    
-
-            tensor_value Y_val = tensor_htGet(Y_ht, key_cmodes);  
-            //printf("Y_val.len: %d\n", Y_val.len);
-            unsigned int my_len = Y_val.len;
-            if(my_len == 0) continue;
-            num_SPA_upper += my_len;
-        }*/
-
-        mem_SPA_upper = (Y_free_upper + fx_end - fx_begin) * sizeof(node_t) + sizeof(node_t*) * ht_size + sizeof(table_t);
-        if(mem_SPA_upper + dram_cur <= dram_cap) { // spa in dram
-            dram_cur += mem_SPA_upper;
-            SPA_in_dram = true;
-        }
-
-        table_t *ht;
-        ht = htCreate(ht_size);
-        mem_SPA_cur = sizeof( node_t*)*ht_size + sizeof( table_t);
-
-        if (tid == 0){
-            sptStopTimer(timer_SPA);
-            time_prep += sptElapsedTime(timer_SPA);
-        }
-
-        for(sptNnzIndex zX = fx_begin; zX < fx_end; ++ zX) {    // Loop nnzs inside a X fiber
-            if (tid == 0){
-                sptStartTimer(timer_SPA);       
-            }
-            sptValue valX = X->values.data[zX];
-            //printf("valX: %f\n", valX);
-            sptIndexVector cmode_index_X; 
-            sptNewIndexVector(&cmode_index_X, num_cmodes, num_cmodes);
-            for(sptIndex i = 0; i < num_cmodes; ++i){
-                cmode_index_X.data[i] = X->inds[nmodes_X - num_cmodes + i].data[zX];
-                //printf("\ncmode_index_X[%lu]: %lu\n", i, cmode_index_X.data[i]);
-            }
-
-            unsigned long long key_cmodes = 0;    
-            for(sptIndex m = 0; m < num_cmodes; ++m)
-                key_cmodes += cmode_index_X.data[m] * Y_cmode_inds[m + 1];
-            //printf("key_cmodes: %d\n", key_cmodes);    
-
-            tensor_value Y_val = tensor_htGet(Y_ht, key_cmodes);  
-            //printf("Y_val.len: %d\n", Y_val.len);
-            unsigned int my_len = Y_val.len;
-            if (tid == 0){
-                sptStopTimer(timer_SPA);
-                time_free_mode += sptElapsedTime(timer_SPA);
-            }
-            if(my_len == 0) continue;
-
-            if (tid == 0){
-                sptStartTimer(timer_SPA);               
-            }
-            if(placement == 4) numa_set_preferred(optane_node);
-            for(int i = 0; i < my_len; i++){
-                unsigned long long fmode =  Y_val.key_FM[i];
-                //printf("i: %d, Y_val.key_FM[i]: %lu, Y_val.val[i]: %f\n", i, Y_val.key_FM[i], Y_val.val[i]);
-                sptValue spa_val = htGet(ht, fmode);
-                float result = Y_val.val[i] * valX;
-                if(spa_val == LONG_MIN) {
-                    htInsert(ht, fmode, result);
-                    mem_SPA_cur += sizeof(node_t);
-                    nnz_counter++;
-                }
-                else    
-                    htUpdate(ht, fmode, spa_val + result);
-            }
-
-            if (tid == 0){
-                sptStopTimer(timer_SPA);
-                time_spa += sptElapsedTime(timer_SPA);
-            }
-            
-        }  
-
-        if (tid == 0){
-            sptStartTimer(timer_SPA);     
-        }
-
-        if(SPA_in_dram) dram_cur = dram_cur - mem_SPA_upper + mem_SPA_cur;
-        Z_tmp_mem = nnz_counter * (nmodes_Z * sizeof(sptIndex) + sizeof(sptValue));
-        Z_mem += Z_tmp_mem;
-
-       
-        if(Z_tmp_mem + dram_cur <= dram_cap && (tid % 7 != 0)){ 
-            dram_cur += Z_tmp_mem;
-            for(int i = 0; i < ht->size; i++){
-                if (placement == 5 && fx_ptr%(ht_size/10) == 0) numa_set_preferred(optane_node);
-                node_t *temp = ht->list[i];
-                while(temp){
-                    unsigned long long idx_tmp = temp->key;
-                    //nnz_counter++;
-                    for(sptIndex m = 0; m < nmodes_spa; ++m) {                        
-                        //sptAppendIndexVector(&Z_tmp_dram[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
-                        sptAppendIndexVectorNuma(&Z_tmp_dram[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
-                    }
-                    //printf("val: %f\n", temp->val);
-                    //sptAppendValueVector(&Z_tmp_dram[tid].values, temp->val);
-                    sptAppendValueVectorNuma(&Z_tmp_dram[tid].values, temp->val);
-                    node_t* pre = temp;
-                    temp = temp->next;
-                    free(pre);
-                    //numa_free(pre, sizeof(node_t));
-                }
-            }
-            Z_tmp_dram[tid].nnz += nnz_counter;
-            for(sptIndex i = 0; i < nnz_counter; ++i) {
-                for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {               
-                    //sptAppendIndexVector(&Z_tmp_dram[tid].inds[m], X->inds[m].data[fx_begin]);
-                    sptAppendIndexVectorNuma(&Z_tmp_dram[tid].inds[m], X->inds[m].data[fx_begin]);
-                }
-            }
-        }
-        else{
-            for(int i = 0; i < ht->size; i++){
-                if (placement == 5 && fx_ptr%(ht_size/10) == 0) numa_set_preferred(optane_node);
-                node_t *temp = ht->list[i];
-                while(temp){
-                    unsigned long long idx_tmp = temp->key;
-                    //nnz_counter++;
-                    for(sptIndex m = 0; m < nmodes_spa; ++m) {                        
-                        //sptAppendIndexVector(&Z_tmp_optane[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
-                        sptAppendIndexVectorNuma(&Z_tmp_optane[tid].inds[m + (nmodes_X - num_cmodes)], (idx_tmp%Y_fmode_inds[m])/Y_fmode_inds[m+1]);
-                    }
-                    //printf("val: %f\n", temp->val);
-                    //sptAppendValueVector(&Z_tmp_optane[tid].values, temp->val);
-                    sptAppendValueVectorNuma(&Z_tmp_optane[tid].values, temp->val);
-                    node_t* pre = temp;
-                    temp = temp->next;
-                    free(pre);
-                    //numa_free(pre, sizeof(node_t));
-                }
-            }
-            Z_tmp_optane[tid].nnz += nnz_counter;
-            for(sptIndex i = 0; i < nnz_counter; ++i) {
-                for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {               
-                    //sptAppendIndexVector(&Z_tmp_optane[tid].inds[m], X->inds[m].data[fx_begin]);
-                    sptAppendIndexVectorNuma(&Z_tmp_optane[tid].inds[m], X->inds[m].data[fx_begin]);
-                }
-            }
-        }
-        htFree(ht);
-        if(SPA_in_dram) dram_cur -= mem_SPA_cur;
-
-        if (tid == 0){
-            sptStopTimer(timer_SPA);
-            time_accumulate_z += sptElapsedTime(timer_SPA);
-        }
-        //printf("Z:\n");
-        //sptDumpSparseTensor(Z, 0, stdout);
-    }   // End Loop fiber pointers of X
-
-    //sptAssert(sptDumpSparseTensor(Z, 0, stdout) == 0);
-
-    sptStopTimer(timer);
-    double main_computation = sptElapsedTime(timer);
-    total_time += main_computation;
-    double spa_total = time_prep + time_free_mode + time_spa + time_accumulate_z;
-    printf("[Index Search]: %.2f s\n", (time_free_mode + time_prep)/spa_total * main_computation);
-    printf("[Accumulation]: %.2f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
-
-    sptStartTimer(timer);
-    if(Z_mem + dram_cur < dram_cap) numa_node = dram_node;
-
-    unsigned long long* Z_tmp_start = (unsigned long long*) malloc( (tk + 1) * sizeof(unsigned long long));
-    unsigned long long Z_total_size = 0;
-
-    Z_tmp_start[0] = 0;
-    for(int i = 0; i < tk; i++){
-        Z_tmp_start[i + 1] = Z_tmp_dram[i].nnz + Z_tmp_optane[i].nnz +  Z_tmp_start[i];
-        Z_total_size +=  Z_tmp_dram[i].nnz + Z_tmp_optane[i].nnz;
-        //printf("Z_tmp_start[i + 1]: %lu, i: %d\n", Z_tmp_start[i + 1], i);
-    }
-
-    if(placement == 6) {
-        result = sptNewSparseTensorWithSizeNuma(Z, nmodes_Z, ndims_buf, optane_node, Z_total_size); 
-    }
-    else{
-        result = sptNewSparseTensorWithSizeNuma(Z, nmodes_Z, ndims_buf, numa_node, Z_total_size); 
-    }
-    //result = sptNewSparseTensorWithSize(Z, nmodes_Z, ndims_buf, Z_total_size); 
-
-#pragma omp parallel for schedule(static) num_threads(tk) shared(Z_tmp_dram, Z_tmp_optane, Z, nmodes_Z, Z_tmp_start)
-    for(int i = 0; i < tk; i++){
-        int tid = omp_get_thread_num();
-        if(Z_tmp_dram[tid].nnz > 0){
-            for(sptIndex m = 0; m < nmodes_Z; ++m) 
-                sptAppendIndexVectorWithVectorStartFromNuma(&Z->inds[m], &Z_tmp_dram[tid].inds[m], Z_tmp_start[tid]);        
-            sptAppendValueVectorWithVectorStartFromNuma(&Z->values, &Z_tmp_dram[tid].values, Z_tmp_start[tid]);  
-        }
-        if(Z_tmp_optane[tid].nnz > 0){
-            for(sptIndex m = 0; m < nmodes_Z; ++m)  
-                sptAppendIndexVectorWithVectorStartFromNuma(&Z->inds[m], &Z_tmp_optane[tid].inds[m], Z_tmp_start[tid] + Z_tmp_dram[tid].nnz);       
-            sptAppendValueVectorWithVectorStartFromNuma(&Z->values, &Z_tmp_optane[tid].values, Z_tmp_start[tid] + Z_tmp_dram[tid].nnz);   
-        }
-    }    
- 
-    sptStopTimer(timer);
-
-    total_time += sptPrintElapsedTime(timer, "Writeback");
-    sptStartTimer(timer);
-
-    sptSparseTensorSortIndex(Z, 1, tk);
-
-    sptStopTimer(timer);
-    total_time += sptPrintElapsedTime(timer, "Output Sorting");
-    printf("[Total time]: %.2f s\n", total_time);
-    //system("numactl -H");
-    printf("\n");
-    }
-
+    free(mode_order_X); free(mode_order_Y);
+    free(mode_order_X2); free(mode_order_Y2);
+    sptFreeTimer(timer);
+    sptFreeTimer(stage1);
+    sptFreeTimer(stage2);
     return 0;
 }
+
+
+

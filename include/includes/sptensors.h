@@ -24,7 +24,7 @@
 /* Sparse tensor */
 int sptNewSparseTensor(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[]);
 int sptNewSparseTensorNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], int numa_node);
-int sptNewSparseTensorWithSizeNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], int numa_node, unsigned long long size);
+int sptNewSparseTensorWithSizeNuma(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], unsigned long long size, int numa_node);
 int sptNewSparseTensorWithSize(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[], unsigned long long size);
 int sptCopySparseTensor(sptSparseTensor *dest, const sptSparseTensor *src, int const nt);
 void sptFreeSparseTensor(sptSparseTensor *tsr);
@@ -168,6 +168,7 @@ int sptCudaSparseTensorMulMatrixOneKernel(sptSemiSparseTensor *Y, sptSparseTenso
 int sptSparseTensorMulVector(sptSemiSparseTensor *Y, sptSparseTensor * const X, sptValueVector * const V, sptIndex mode);
 
 int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, int nt, int output_sorting, int placement);
+int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, sptSparseTensor *Z2, sptSparseTensor * const X2, sptSparseTensor *const Y2, sptIndex num_cmodes_2, sptIndex * cmodes_X2, sptIndex * cmodes_Y2, int tk, int output_sorting, int placement);
 
 /**
  * Kronecker product
@@ -357,7 +358,9 @@ typedef struct{
 table_t *htCreate(const unsigned int size);
 unsigned int htHashCode(unsigned long long key);
 void htUpdate( table_t *t, unsigned long long key, sptValue val);
+void htUpdateS( table_t *t, unsigned long long key, sptValue val);
 void htInsert( table_t *t, unsigned long long key, sptValue val);
+void htInsertS( table_t *t, unsigned long long key, sptValue val);
 sptValue htGet( table_t *t,unsigned long long key);
 void htFree( table_t *t);
 
@@ -380,6 +383,14 @@ typedef struct{
     int size;
      tensor_node_t **list;
 }tensor_table_t;
+
+typedef struct{
+    unsigned int frequency;
+    unsigned int memory;
+    unsigned int pos;
+    sptIndexVector idx;
+    //sptIndexVector key;
+}bucket_s;
 
 int tensor_htNewValueVector(tensor_value *vec, unsigned int len, unsigned int cap);
 int tensor_htAppendValueVector(tensor_value *vec, unsigned long long key_FM, sptValue val);
