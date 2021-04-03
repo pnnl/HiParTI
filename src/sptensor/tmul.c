@@ -33,8 +33,8 @@
 int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, int tk, int output_sorting, int placement)
 {
     // Experiment modes
-    int experiment_modes;
-    sscanf(getenv("EXPERIMENT_MODES"), "%d", &experiment_modes);
+    int experiment_modes = 3;
+    // sscanf(getenv("EXPERIMENT_MODES"), "%d", &experiment_modes);
 
 //0: COOY + SPA
 if(experiment_modes == 0){
@@ -984,6 +984,7 @@ sptStartTimer(timer);
     //3: HTY + HTA
     if(experiment_modes == 3)
     {
+        printf("OK!!\n"); fflush(stdout);
         int result;
         sptIndex nmodes_X = X->nmodes;
         sptIndex nmodes_Y = Y->nmodes;
