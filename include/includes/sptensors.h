@@ -346,13 +346,13 @@ sptNnzIndex sptBinarySearch(sptIndex *array, int arrayStart, int arrayEnd, sptIn
 
 
 /// Hash table for SPA
-typedef struct{
+typedef struct node_t {
     unsigned long long key;
     sptValue val;
     struct node_t *next;
-}node_t;
+} node_t;
 
-typedef struct{
+typedef struct table_t{
     int size;
     node_t **list;
 }table_t;
@@ -368,20 +368,20 @@ void htFree( table_t *t);
 
 
 /// Hash table for the second tensor
-typedef struct {
+typedef struct tensor_value {
     unsigned int    len;        /// length
     unsigned int    cap;        /// capacity
     unsigned long long* key_FM; /// key with free modes of the second tensor
     sptValue* val;              /// data
 } tensor_value;
 
-typedef struct{
+typedef struct tensor_node_t{
     unsigned long long key;
     tensor_value val;
     struct tensor_node_t *next;
 }tensor_node_t;
 
-typedef struct{
+typedef struct tensor_table_t{
     int size;
      tensor_node_t **list;
 }tensor_table_t;

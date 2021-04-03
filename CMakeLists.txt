@@ -13,7 +13,7 @@ if(CODE_COVERAGE)
 endif()
 
 # Define build ParTI library
-option(BUILD_STATIC "Build static library" OFF)
+option(BUILD_STATIC "Build static library" ON)
 option(BUILD_SHARED "Build shared library" ON)
 
 # Define data types
