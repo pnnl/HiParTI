@@ -20,6 +20,7 @@
 #define PARTI_SPTENSORS_H
 
 #include <string.h>
+#include "structs.h"
 
 /* Sparse tensor */
 int sptNewSparseTensor(sptSparseTensor *tsr, sptIndex nmodes, const sptIndex ndims[]);
@@ -58,6 +59,7 @@ int sptSparseTensorSetIndices(
     sptNnzIndexVector *fiberidx);
 void sptSparseTensorSortIndex(sptSparseTensor *tsr, int force, int tk);
 void sptSparseTensorSortIndexCmode(sptSparseTensor *tsr, int force, int tk, int cmode_stsrt, int num_cmode);
+void sptQuickSortBucketS(bucket_s *buckets, sptNnzIndex l, sptNnzIndex r, int tk);
 
 void sptSparseTensorSortIndexAtMode(sptSparseTensor *tsr, sptIndex const mode, int force);
 void sptSparseTensorSortIndexCustomOrder(sptSparseTensor *tsr, sptIndex const *  mode_order, int force, int tk);
@@ -384,13 +386,6 @@ typedef struct{
      tensor_node_t **list;
 }tensor_table_t;
 
-typedef struct{
-    unsigned int frequency;
-    unsigned int memory;
-    unsigned int pos;
-    sptIndexVector idx;
-    //sptIndexVector key;
-}bucket_s;
 
 int tensor_htNewValueVector(tensor_value *vec, unsigned int len, unsigned int cap);
 int tensor_htAppendValueVector(tensor_value *vec, unsigned long long key_FM, sptValue val);

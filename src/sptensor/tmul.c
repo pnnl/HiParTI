@@ -2022,10 +2022,10 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
             // printf("Z2_tmp_start:\n");
             // for(int i=0; i< (tk + 1); ++i)
             //     printf("%llu, ", Z2_tmp_start[i]);
+            summation(nmodes_Z2, Z2_tmp, Z2_input, tk, timer, &summation_time, ndims_buf_2, Z2_total_size, Z2_tmp_start, &Z2, opt_summation);  
+            if(output_sorting == 1) sptSparseTensorSortIndex(Z2, 1, tk);
             // printf("\nZ2: \n");
             // sptDumpSparseTensor(Z2, 0, stdout);
-            // summation(nmodes_Z, Z_tmp_dram2, Z_tmp_optane2, Z_input2, node_size, tk, timer, &summation_time, dram_node, optane_node, numa_node, hotspot, ndims_buf, Z_total_size, Z_tmp_start, &Z2, opt_summation);  
-            // if(output_sorting == 1) sptSparseTensorSortIndex(Z2, 1, tk);
             sptStopTimer(stage2);
 
         }

@@ -266,4 +266,12 @@ typedef struct
 } bin_header;
 
 
+typedef struct{
+    unsigned int frequency;
+    unsigned int memory;
+    unsigned int pos;
+    sptIndexVector idx;
+    //sptIndexVector key;
+}bucket_s;
+
 #endif
