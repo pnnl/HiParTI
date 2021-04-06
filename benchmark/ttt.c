@@ -133,11 +133,11 @@ int main(int argc, char *argv[]) {
     }
     omp_set_num_threads(nt);
     printf("#Contraction modes: %"PARTI_PRI_INDEX"\n", num_cmodes);
-    //sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
-    //sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
+    // sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
+    // sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
 
-    int experiment_modes;
-    sscanf(getenv("EXPERIMENT_MODES"), "%d", &experiment_modes);
+    int experiment_modes = 3;
+    // sscanf(getenv("EXPERIMENT_MODES"), "%d", &experiment_modes);
 
     if (experiment_modes <= 3) {
         sptAssert(sptLoadSparseTensor(&X, 1, Xfname) == 0);
@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
 
     /* For warm-up caches, timing not included */
     if(cuda_dev_id == -2) {     
-            sptAssert(sptSparseTensorMulTensor(&Z, &X, &Y, num_cmodes, cmodes_X, cmodes_Y, nt, output_sorting, placement) == 0);
+        sptAssert(sptSparseTensorMulTensor(&Z, &X, &Y, num_cmodes, cmodes_X, cmodes_Y, nt, output_sorting, placement) == 0);
     } else if(cuda_dev_id == -1) {
         // sptAssert(sptOmpSparseTensorMulMatrix(&Y, &X, &U, mode) == 0);
     }
