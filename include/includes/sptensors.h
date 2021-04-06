@@ -169,8 +169,10 @@ int sptCudaSparseTensorMulMatrixOneKernel(sptSemiSparseTensor *Y, sptSparseTenso
 
 int sptSparseTensorMulVector(sptSemiSparseTensor *Y, sptSparseTensor * const X, sptValueVector * const V, sptIndex mode);
 
-int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, int nt, int output_sorting, int placement);
-int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, sptSparseTensor *Z2, sptSparseTensor * const X2, sptSparseTensor *const Y2, sptIndex num_cmodes_2, sptIndex * cmodes_X2, sptIndex * cmodes_Y2, int tk, int output_sorting, int placement);
+int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, sptIndex * modes_Z, int nt, int output_sorting, int opt_summation, int placement);
+int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, sptSparseTensor *const Y, sptIndex num_cmodes, sptIndex * cmodes_X, sptIndex * cmodes_Y, sptIndex * modes_Z,
+    sptSparseTensor *Z2, sptSparseTensor * const X2, sptSparseTensor *const Y2, sptIndex num_cmodes_2, sptIndex * cmodes_X2, sptIndex * cmodes_Y2, sptIndex * modes_Z2,
+    int tk, int output_sorting, int opt_summation, int placement);
 
 /**
  * Kronecker product

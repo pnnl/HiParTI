@@ -50,6 +50,7 @@ int main(int argc, char *argv[]) {
     int niters = 5;
     int placement = 0;
     int nt = 1;
+    int opt_summation = 1; // 0: no sum; 1: ours; 2: linear search
 
     if(argc < 3) {
         print_usage(argv);
@@ -182,19 +183,10 @@ int main(int argc, char *argv[]) {
     // sptAssert(sptDumpSparseTensor(&Y2, 0, stdout) == 0);   
 
     /* For warm-up caches, timing not included */
-    if(cuda_dev_id == -2) {     
-        sptAssert(sptSparseTensorMulTensor2TCs(&Z, &X, &Y, num_cmodes, cmodes_X, cmodes_Y, &Z2, &X2, &Y2, num_cmodes_2, cmodes_X2, cmodes_Y2, nt, output_sorting, placement) == 0);
-    } else if(cuda_dev_id == -1) {
-        // sptAssert(sptOmpSparseTensorMulMatrix(&Y, &X, &U, mode) == 0);
-    }
+    // sptAssert(sptSparseTensorMulTensor2TCs(&Z, &X, &Y, num_cmodes, cmodes_X, cmodes_Y, &Z2, &X2, &Y2, num_cmodes_2, cmodes_X2, cmodes_Y2, nt, output_sorting, opt_summation, placement) == 0);
 
     // for(int it=0; it<niters; ++it) {
     //     sptFreeSparseTensor(&Z);
-    //     if(cuda_dev_id == -2) {
-    //         // sptAssert(sptSparseTensorMulMatrix(&Y, &X, &U, mode) == 0);
-    //     } else if(cuda_dev_id == -1) {
-    //         // sptAssert(sptOmpSparseTensorMulMatrix(&Y, &X, &U, mode) == 0);
-    //     }
     // }
 
     sptSparseTensorStatus(&Z, stdout);

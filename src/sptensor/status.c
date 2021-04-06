@@ -53,5 +53,6 @@ void sptSparseTensorStatus(sptSparseTensor *tsr, FILE *fp)
   char * bytestr = sptBytesString(tsr->nnz * (sizeof(sptIndex) * tsr->nmodes + sizeof(sptValue)));
   fprintf(fp, "COO-STORAGE=%s\n", bytestr);
   fprintf(fp, "\n");
+  fflush(fp);
   free(bytestr);
 }
