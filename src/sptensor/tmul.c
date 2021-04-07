@@ -41,9 +41,9 @@ int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptS
     if(X->nnz == 0 || Y->nnz == 0) {
         printf("No contraction needed.\n");
         sptIndex nmodes_Z = X->nmodes + Y->nmodes - 2 * num_cmodes;
-        sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
-        sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
-        sptDumpIndexArray(modes_Z, nmodes_Z, stdout);
+        // sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
+        // sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
+        // sptDumpIndexArray(modes_Z, nmodes_Z, stdout);
         sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
         spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
         for(sptIndex m = 0; m < X->nmodes - num_cmodes; ++m) {
@@ -53,7 +53,6 @@ int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptS
         for(sptIndex m = X->nmodes - num_cmodes; m < nmodes_Z; ++m) {
             // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
             ndims_buf[m] = Y->ndims[modes_Z[m]];
-            printf("m: %u, ndims_buf[m]: %u, modes_Z[m]: %u, Y->ndims[modes_Z[m]]: %u\n", m, ndims_buf[m], modes_Z[m], Y->ndims[modes_Z[m]]); fflush(stdout);
         }
         printf("ndims_buf:\n");
         sptDumpIndexArray(ndims_buf, nmodes_Z, stdout); fflush(stdout);
@@ -1027,7 +1026,7 @@ sptStartTimer(timer);
         double total_time = 0;
         sptNewTimer(&timer, 0);
 
-        if(num_cmodes >= X->nmodes) {
+        if(num_cmodes > X->nmodes) {
             spt_CheckError(SPTERR_SHAPE_MISMATCH, "CPU  SpTns * SpTns", "shape mismatch");
         }
         for(sptIndex m = 0; m < num_cmodes; ++m) {
@@ -1058,8 +1057,8 @@ sptStartTimer(timer);
             ++ ci;
         }
         sptAssert(ci == nmodes_X);
-        printf("mode_order_X:\n");
-        sptDumpIndexArray(mode_order_X, nmodes_X, stdout);
+        // printf("mode_order_X:\n");
+        // sptDumpIndexArray(mode_order_X, nmodes_X, stdout); fflush(stdout);
         /// Shuffle tensor indices according to mode_order_X
         sptSparseTensorShuffleModes(X, mode_order_X);
 
@@ -1097,8 +1096,8 @@ sptStartTimer(timer);
             mode_order_Y[ci] = cmodes_Y[m];
             ++ ci;
         }
-        printf("mode_order_Y:\n");
-        sptDumpIndexArray(mode_order_Y, nmodes_Y, stdout);
+        // printf("mode_order_Y:\n");
+        // sptDumpIndexArray(mode_order_Y, nmodes_Y, stdout); fflush(stdout);
 
         table_t *Y_ht;
         unsigned int Y_ht_size = Y->nnz;
