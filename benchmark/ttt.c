@@ -153,7 +153,7 @@ int main(int argc, char *argv[]) {
     printf("#Contraction modes: %"PARTI_PRI_INDEX"\n", num_cmodes);
     // sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
     // sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
-    // sptDumpIndexArray(modes_Z, nmodes_Z, stdout);
+    // sptDumpIndexArray(modes_Z, nmodes_Z, stdout); fflush(stdout);
 
     int experiment_modes = 3;
     // sscanf(getenv("EXPERIMENT_MODES"), "%d", &experiment_modes);

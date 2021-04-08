@@ -39,7 +39,7 @@ int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptS
     // sscanf(getenv("EXPERIMENT_MODES"), "%d", &experiment_modes);
 
     if(X->nnz == 0 || Y->nnz == 0) {
-        printf("No contraction needed.\n");
+        // printf("No contraction needed.\n");
         sptIndex nmodes_Z = X->nmodes + Y->nmodes - 2 * num_cmodes;
         // sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
         // sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
@@ -54,8 +54,8 @@ int sptSparseTensorMulTensor(sptSparseTensor *Z, sptSparseTensor * const X, sptS
             // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
             ndims_buf[m] = Y->ndims[modes_Z[m]];
         }
-        printf("ndims_buf:\n");
-        sptDumpIndexArray(ndims_buf, nmodes_Z, stdout); fflush(stdout);
+        // printf("ndims_buf:\n");
+        // sptDumpIndexArray(ndims_buf, nmodes_Z, stdout); fflush(stdout);
         int result = sptNewSparseTensor(Z, nmodes_Z, ndims_buf); 
         free(ndims_buf);
         return 0;
@@ -1152,7 +1152,7 @@ sptStartTimer(timer);
 
         sptStopTimer(timer);     
         total_time += sptElapsedTime(timer);
-        printf("[Input Processing]: %.6f s\n", sptElapsedTime(timer) + X_time);
+        // printf("[Input Processing]: %.6f s\n", sptElapsedTime(timer) + X_time);
 
         sptNnzIndexVector fidx_X;
         /// Set indices for free modes, use X
@@ -1304,8 +1304,8 @@ sptStartTimer(timer);
     double main_computation = sptElapsedTime(timer);
     total_time += main_computation;
     double spa_total = time_prep + time_free_mode + time_spa + time_accumulate_z;
-    printf("[Index Search]: %.6f s\n", (time_free_mode + time_prep)/spa_total * main_computation);
-    printf("[Accumulation]: %.6f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
+    // printf("[Index Search]: %.6f s\n", (time_free_mode + time_prep)/spa_total * main_computation);
+    // printf("[Accumulation]: %.6f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
 
     sptStartTimer(timer);
     /// Append Z_tmp to Z
@@ -1336,15 +1336,17 @@ sptStartTimer(timer);
         //  for(int i = 0; i < tk; i++)
         //      sptFreeSparseTensor(&Z_tmp[i]);
         sptStopTimer(timer);
-        total_time += sptPrintElapsedTime(timer, "Writeback");
+        // total_time += sptPrintElapsedTime(timer, "Writeback");
+        total_time += sptElapsedTime(timer);
 
         sptStartTimer(timer);
         if(output_sorting == 1){
             sptSparseTensorSortIndex(Z, 1, tk);
         }
         sptStopTimer(timer);
-        total_time += sptPrintElapsedTime(timer, "Output Sorting");
-        printf("[Total time]: %.6f s\n", total_time);
+        // total_time += sptPrintElapsedTime(timer, "Output Sorting");
+        total_time += sptElapsedTime(timer);
+        // printf("[Total time]: %.6f s\n", total_time);
         printf("\n");
     }  
 
@@ -1740,15 +1742,24 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
 {
     if((X->nnz == 0 || Y->nnz == 0) && (X2->nnz == 0 || Y2->nnz == 0)) {
         printf("No contraction needed.\n");
+        // sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
+        // sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
+        // sptDumpIndexArray(modes_Z, nmodes_Z, stdout);
         sptIndex nmodes_Z = X->nmodes + Y->nmodes - 2 * num_cmodes;
         sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
         spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
         for(sptIndex m = 0; m < X->nmodes - num_cmodes; ++m) {
-            ndims_buf[m] = X->ndims[m];
+            ndims_buf[m] = X->ndims[modes_Z[m]];
         }
-        for(sptIndex m = num_cmodes; m < Y->nmodes; ++m) {
-            ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
-        }   
+        // for(sptIndex m = num_cmodes; m < Y->nmodes; ++m) {
+        //     ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+        // }   
+        for(sptIndex m = X->nmodes - num_cmodes; m < nmodes_Z; ++m) {
+            // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+            ndims_buf[m] = Y->ndims[modes_Z[m]];
+        }
+        // printf("ndims_buf:\n");
+        // sptDumpIndexArray(ndims_buf, nmodes_Z, stdout); fflush(stdout);
         int result = sptNewSparseTensor(Z, nmodes_Z, ndims_buf); 
         free(ndims_buf);
 
@@ -1756,43 +1767,51 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
         sptIndex *ndims_buf_2 = malloc(nmodes_Z2 * sizeof *ndims_buf_2);
         spt_CheckOSError(!ndims_buf_2, "CPU  SpTns * SpTns");
         for(sptIndex m = 0; m < X2->nmodes - num_cmodes_2; ++m) {
-            ndims_buf_2[m] = X2->ndims[m];
+            ndims_buf_2[m] = X2->ndims[modes_Z2[m]];
         }
-        for(sptIndex m = num_cmodes_2; m < Y2->nmodes; ++m) {
-            ndims_buf_2[(m - num_cmodes_2) + X2->nmodes - num_cmodes_2] = Y2->ndims[m];
-        }   
+        for(sptIndex m = X2->nmodes - num_cmodes_2; m < nmodes_Z2; ++m) {
+            // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+            ndims_buf_2[m] = Y2->ndims[modes_Z2[m]];
+        }
         result = sptNewSparseTensor(Z2, nmodes_Z2, ndims_buf_2); 
         free(ndims_buf_2);
         return 0;
     } else if(X->nnz == 0 || Y->nnz == 0) {
         printf("Only 2nd contraction performed.\n");
-        sptIndex nmodes_Z = X->nmodes + Y->nmodes - 2 * num_cmodes;
-        sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
-        spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
-        for(sptIndex m = 0; m < X->nmodes - num_cmodes; ++m) {
-            ndims_buf[m] = X->ndims[m];
+        sptIndex nmodes_Z2 = X2->nmodes + Y2->nmodes - 2 * num_cmodes_2;
+        sptIndex *ndims_buf_2 = malloc(nmodes_Z2 * sizeof *ndims_buf_2);
+        spt_CheckOSError(!ndims_buf_2, "CPU  SpTns * SpTns");
+        for(sptIndex m = 0; m < X2->nmodes - num_cmodes_2; ++m) {
+            ndims_buf_2[m] = X2->ndims[modes_Z2[m]];
         }
-        for(sptIndex m = num_cmodes; m < Y->nmodes; ++m) {
-            ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
-        }   
-        int result = sptNewSparseTensor(Z, nmodes_Z, ndims_buf); 
-        free(ndims_buf);
+        for(sptIndex m = X2->nmodes - num_cmodes_2; m < nmodes_Z2; ++m) {
+            // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+            ndims_buf_2[m] = Y2->ndims[modes_Z2[m]];
+        }
+        int result = sptNewSparseTensor(Z2, nmodes_Z2, ndims_buf_2); 
+        free(ndims_buf_2);
 
         sptSparseTensorMulTensor(Z2, X2, Y2, num_cmodes_2, cmodes_X2, cmodes_Y2, modes_Z2, tk, output_sorting, opt_summation, placement);
         return 0;
     } else if(X2->nnz == 0 || Y2->nnz == 0) {
         printf("Only 1st contraction performed.\n");
-        sptIndex nmodes_Z2 = X2->nmodes + Y2->nmodes - 2 * num_cmodes_2;
-        sptIndex *ndims_buf_2 = malloc(nmodes_Z2 * sizeof *ndims_buf_2);
-        spt_CheckOSError(!ndims_buf_2, "CPU  SpTns * SpTns");
-        for(sptIndex m = 0; m < X2->nmodes - num_cmodes_2; ++m) {
-            ndims_buf_2[m] = X2->ndims[m];
+        sptIndex nmodes_Z = X->nmodes + Y->nmodes - 2 * num_cmodes;
+        sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
+        spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
+        for(sptIndex m = 0; m < X->nmodes - num_cmodes; ++m) {
+            ndims_buf[m] = X->ndims[modes_Z[m]];
         }
-        for(sptIndex m = num_cmodes_2; m < Y2->nmodes; ++m) {
-            ndims_buf_2[(m - num_cmodes_2) + X2->nmodes - num_cmodes_2] = Y2->ndims[m];
-        }   
-        int result = sptNewSparseTensor(Z2, nmodes_Z2, ndims_buf_2); 
-        free(ndims_buf_2);
+        // for(sptIndex m = num_cmodes; m < Y->nmodes; ++m) {
+        //     ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+        // }   
+        for(sptIndex m = X->nmodes - num_cmodes; m < nmodes_Z; ++m) {
+            // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+            ndims_buf[m] = Y->ndims[modes_Z[m]];
+        }
+        // printf("ndims_buf:\n");
+        // sptDumpIndexArray(ndims_buf, nmodes_Z, stdout); fflush(stdout);
+        int result = sptNewSparseTensor(Z, nmodes_Z, ndims_buf); 
+        free(ndims_buf);
 
         sptSparseTensorMulTensor(Z, X, Y, num_cmodes, cmodes_X, cmodes_Y, modes_Z, tk, output_sorting, opt_summation, placement);
         return 0;
@@ -1828,22 +1847,14 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     /// Shuffle X indices and sort X as the order of free modes -> contract modes; mode_order also separate all the modes to free and contract modes separately.
     sptIndex * mode_order_X = (sptIndex *)malloc(nmodes_X * sizeof(sptIndex));
     sptIndex ci = nmodes_X - num_cmodes, fi = 0;
-    for(sptIndex m = 0; m < nmodes_X; ++m) {
-        if(sptInArray(cmodes_X, num_cmodes, m) == -1) {
-            mode_order_X[fi] = m;
-            ++ fi;
-        }
+    for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {
+        mode_order_X[m] = modes_Z[m];
     }
-    sptAssert(fi == nmodes_X - num_cmodes);
     sptIndex * mode_order_X2 = (sptIndex *)malloc(nmodes_X2 * sizeof(sptIndex));
     sptIndex ci2 = nmodes_X2 - num_cmodes_2, fi2 = 0;
-    for(sptIndex m = 0; m < nmodes_X2; ++m) {
-        if(sptInArray(cmodes_X2, num_cmodes_2, m) == -1) {
-            mode_order_X2[fi2] = m;
-            ++ fi2;
-        }
+    for(sptIndex m = 0; m < nmodes_X2 - num_cmodes_2; ++m) {
+        mode_order_X2[m] = modes_Z2[m];
     }
-    sptAssert(fi2 == nmodes_X2 - num_cmodes_2);
     
     /// Copy the contract modes while keeping the contraction mode order
     for(sptIndex m = 0; m < num_cmodes; ++m) {
@@ -1856,10 +1867,10 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
         ++ ci2;
     }
     sptAssert(ci2 == nmodes_X2);
-    // printf("mode_order_X:\n");
-    // sptDumpIndexArray(mode_order_X, nmodes_X, stdout);
-    // printf("mode_order_X2:\n");
-    // sptDumpIndexArray(mode_order_X2, nmodes_X2, stdout);
+    printf("mode_order_X:\n");
+    sptDumpIndexArray(mode_order_X, nmodes_X, stdout);
+    printf("mode_order_X2:\n");
+    sptDumpIndexArray(mode_order_X2, nmodes_X2, stdout);
 
     /// Shuffle tensor indices according to mode_order_X
     sptSparseTensorShuffleModes(X, mode_order_X);   // tc1-s1
@@ -1877,6 +1888,9 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     total_time += X_time;
     sptStartTimer(timer);
 
+    sptIndex nmodes_Z = X->nmodes + Y->nmodes - 2 * num_cmodes;
+    sptIndex nmodes_Z2 = X2->nmodes + Y2->nmodes - 2 * num_cmodes_2;
+
     //sptAssert(sptDumpSparseTensor(Y, 0, stdout) == 0);
     sptIndex * mode_order_Y = (sptIndex *)malloc(nmodes_Y * sizeof(sptIndex));
     sptIndex * mode_order_Y2 = (sptIndex *)malloc(nmodes_Y2 * sizeof(sptIndex));
@@ -1884,18 +1898,14 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     fi = num_cmodes;
     ci2 = 0;
     fi2 = num_cmodes_2;
-    for(sptIndex m = 0; m < nmodes_Y; ++m) {
-        if(sptInArray(cmodes_Y, num_cmodes, m) == -1) { // m is not a contraction mode
-            mode_order_Y[fi] = m;
-            ++ fi;
-        }
+    for(sptIndex m = nmodes_X - num_cmodes; m < nmodes_Z; ++m) {
+        mode_order_Y[fi] = modes_Z[m];
+        ++ fi;
     }
     sptAssert(fi == nmodes_Y);
-    for(sptIndex m = 0; m < nmodes_Y2; ++m) {
-        if(sptInArray(cmodes_Y2, num_cmodes_2, m) == -1) { // m is not a contraction mode
-            mode_order_Y2[fi2] = m;
-            ++ fi2;
-        }
+    for(sptIndex m = nmodes_X2 - num_cmodes_2; m < nmodes_Z2; ++m) {
+        mode_order_Y2[fi2] = modes_Z2[m];
+        ++ fi2;
     }
     sptAssert(fi2 == nmodes_Y2);
     
@@ -1973,31 +1983,32 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     // printf("fidx_X2: \n");
     // sptDumpNnzIndexVector(&fidx_X2, stdout);
 
+
     /// Allocate the output tensor
-    sptIndex nmodes_Z = nmodes_X + nmodes_Y - 2 * num_cmodes;
     sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
     spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
-    for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {
-        ndims_buf[m] = X->ndims[m];
+    for(sptIndex m = 0; m < X->nmodes - num_cmodes; ++m) {
+        ndims_buf[m] = X->ndims[modes_Z[m]];
     }
     /// For non-sorted Y 
-    for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
-        ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[mode_order_Y[m]];
+    for(sptIndex m = X->nmodes - num_cmodes; m < nmodes_Z; ++m) {
+        // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+        ndims_buf[m] = Y->ndims[modes_Z[m]];
     }
-    // printf("ndims_buf: \n");
-    // sptDumpIndexArray(ndims_buf, nmodes_Z, stdout);
-    sptIndex nmodes_Z2 = nmodes_X2 + nmodes_Y2 - 2 * num_cmodes_2;
+    printf("ndims_buf: \n");
+    sptDumpIndexArray(ndims_buf, nmodes_Z, stdout);
+
     sptIndex *ndims_buf_2 = malloc(nmodes_Z2 * sizeof *ndims_buf_2);
     spt_CheckOSError(!ndims_buf_2, "CPU  SpTns * SpTns");
-    for(sptIndex m = 0; m < nmodes_X2 - num_cmodes_2; ++m) {
-        ndims_buf_2[m] = X2->ndims[m];
+    for(sptIndex m = 0; m < X2->nmodes - num_cmodes_2; ++m) {
+        ndims_buf_2[m] = X2->ndims[modes_Z2[m]];
     }
-    /// For non-sorted Y 
-    for(sptIndex m = num_cmodes_2; m < nmodes_Y2; ++m) {
-        ndims_buf_2[(m - num_cmodes_2) + nmodes_X2 - num_cmodes_2] = Y2->ndims[mode_order_Y2[m]];
+    for(sptIndex m = X2->nmodes - num_cmodes_2; m < nmodes_Z2; ++m) {
+        // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+        ndims_buf_2[m] = Y2->ndims[modes_Z2[m]];
     }
-    // printf("ndims_buf_2: \n");
-    // sptDumpIndexArray(ndims_buf_2, nmodes_Z2, stdout);
+    printf("ndims_buf_2: \n");
+    sptDumpIndexArray(ndims_buf_2, nmodes_Z2, stdout);
 
     /// Each thread with a local Z_tmp
     sptSparseTensor *Z_tmp = malloc(tk * sizeof (sptSparseTensor));
