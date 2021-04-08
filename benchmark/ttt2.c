@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
     int niters = 5;
     int placement = 0;
     int nt = 1;
-    int opt_summation = 1; // 0: no sum; 1: ours; 2: linear search
+    int opt_summation = 0; // 0: no sum; 1: ours; 2: linear search
 
     if(argc < 3) {
         print_usage(argv);

@@ -1741,7 +1741,7 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     int tk, int output_sorting, int opt_summation, int placement)
 {
     if((X->nnz == 0 || Y->nnz == 0) && (X2->nnz == 0 || Y2->nnz == 0)) {
-        printf("No contraction needed.\n");
+        // printf("No contraction needed.\n");
         // sptDumpIndexArray(cmodes_X, num_cmodes, stdout);
         // sptDumpIndexArray(cmodes_Y, num_cmodes, stdout);
         // sptDumpIndexArray(modes_Z, nmodes_Z, stdout);
@@ -1867,22 +1867,23 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
         ++ ci2;
     }
     sptAssert(ci2 == nmodes_X2);
-    printf("mode_order_X:\n");
-    sptDumpIndexArray(mode_order_X, nmodes_X, stdout);
-    printf("mode_order_X2:\n");
-    sptDumpIndexArray(mode_order_X2, nmodes_X2, stdout);
+    // printf("mode_order_X:\n");
+    // sptDumpIndexArray(mode_order_X, nmodes_X, stdout);
+    // printf("mode_order_X2:\n");
+    // sptDumpIndexArray(mode_order_X2, nmodes_X2, stdout);
 
     /// Shuffle tensor indices according to mode_order_X
+    /****** Start: TC1 & TC2-stage 1 **********/
     sptSparseTensorShuffleModes(X, mode_order_X);   // tc1-s1
     sptSparseTensorShuffleModes(X2, mode_order_X2);   // tc2-s1
-    // printf("Permuted X:\n");
-    // sptAssert(sptDumpSparseTensor(X, 0, stdout) == 0);
 
     for(sptIndex m = 0; m < nmodes_X; ++m) mode_order_X[m] = m; // reset mode_order
     for(sptIndex m = 0; m < nmodes_X2; ++m) mode_order_X2[m] = m; // reset mode_order
     // sptSparseTensorSortIndexCmode(X, 1, 1, 1, 2);
     sptSparseTensorSortIndex(X, 1, tk);   // tc1-s1
-    
+    // printf("Sorted X:\n");
+    // sptSparseTensorStatus(X, stdout);
+
     sptStopTimer(timer);
     double X_time = sptElapsedTime(timer);
     total_time += X_time;
@@ -1920,9 +1921,11 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
         ++ ci2;
     }
     sptAssert(ci2 == num_cmodes_2);
+    // printf("mode_order_Y: \n");
+    // sptDumpIndexArray(mode_order_Y, nmodes_Y, stdout);
     // printf("mode_order_Y2: \n");
     // sptDumpIndexArray(mode_order_Y2, nmodes_Y2, stdout);
-
+    
     // tc1-s1
     table_t *Y_ht, *Y2_ht;
     unsigned int Y_ht_size = Y->nnz;
@@ -1966,49 +1969,59 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     sptNnzIndex Y_nnz = Y->nnz, Y2_nnz = Y2->nnz;
 
     buildHtY(tk, Y_ht, Y_num_fmodes, mode_order_Y, num_cmodes, Y_cmode_inds, Y_fmode_inds, Y_nnz, Y, locks);    // tc1-s1
+    /****** End: TC1-stage 1 **********/
 
     for(size_t i = 0; i < Y_ht_size; i++) omp_destroy_lock(&locks[i]);
-    for(size_t i = 0; i < Y2_ht_size; i++) omp_destroy_lock(&locks_2[i]);
 
     sptStopTimer(timer);     
     total_time += sptElapsedTime(timer);
-    printf("[Input Processing]: %.6f s\n", sptElapsedTime(timer) + X_time);
+    // printf("[Input Processing]: %.6f s\n", sptElapsedTime(timer) + X_time);
 
     sptNnzIndexVector fidx_X, fidx_X2;
     /// Set indices for free modes, use X
     sptSparseTensorSetIndices(X, mode_order_X, nmodes_X - num_cmodes, &fidx_X);
-    sptSparseTensorSetIndices(X2, mode_order_X2, nmodes_X2 - num_cmodes_2, &fidx_X2);
     // printf("fidx_X: \n");
     // sptDumpNnzIndexVector(&fidx_X, stdout);
-    // printf("fidx_X2: \n");
-    // sptDumpNnzIndexVector(&fidx_X2, stdout);
-
 
     /// Allocate the output tensor
     sptIndex *ndims_buf = malloc(nmodes_Z * sizeof *ndims_buf);
     spt_CheckOSError(!ndims_buf, "CPU  SpTns * SpTns");
-    for(sptIndex m = 0; m < X->nmodes - num_cmodes; ++m) {
-        ndims_buf[m] = X->ndims[modes_Z[m]];
+    for(sptIndex m = 0; m < nmodes_X - num_cmodes; ++m) {
+        ndims_buf[m] = X->ndims[m];
     }
     /// For non-sorted Y 
-    for(sptIndex m = X->nmodes - num_cmodes; m < nmodes_Z; ++m) {
-        // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
-        ndims_buf[m] = Y->ndims[modes_Z[m]];
+    for(sptIndex m = num_cmodes; m < nmodes_Y; ++m) {
+        ndims_buf[(m - num_cmodes) + nmodes_X - num_cmodes] = Y->ndims[mode_order_Y[m]];
     }
-    printf("ndims_buf: \n");
-    sptDumpIndexArray(ndims_buf, nmodes_Z, stdout);
+    // for(sptIndex m = 0; m < X->nmodes - num_cmodes; ++m) {
+    //     ndims_buf[m] = X->ndims[modes_Z[m]];
+    // }
+    // /// For non-sorted Y 
+    // for(sptIndex m = X->nmodes - num_cmodes; m < nmodes_Z; ++m) {
+    //     // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+    //     ndims_buf[m] = Y->ndims[modes_Z[m]];
+    // }
+    // printf("ndims_buf: \n");
+    // sptDumpIndexArray(ndims_buf, nmodes_Z, stdout);
 
     sptIndex *ndims_buf_2 = malloc(nmodes_Z2 * sizeof *ndims_buf_2);
     spt_CheckOSError(!ndims_buf_2, "CPU  SpTns * SpTns");
-    for(sptIndex m = 0; m < X2->nmodes - num_cmodes_2; ++m) {
-        ndims_buf_2[m] = X2->ndims[modes_Z2[m]];
+    for(sptIndex m = 0; m < nmodes_X2 - num_cmodes_2; ++m) {
+        ndims_buf_2[m] = X2->ndims[m];
     }
-    for(sptIndex m = X2->nmodes - num_cmodes_2; m < nmodes_Z2; ++m) {
-        // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
-        ndims_buf_2[m] = Y2->ndims[modes_Z2[m]];
+    /// For non-sorted Y 
+    for(sptIndex m = num_cmodes_2; m < nmodes_Y2; ++m) {
+        ndims_buf_2[(m - num_cmodes_2) + nmodes_X2 - num_cmodes_2] = Y2->ndims[mode_order_Y2[m]];
     }
-    printf("ndims_buf_2: \n");
-    sptDumpIndexArray(ndims_buf_2, nmodes_Z2, stdout);
+    // for(sptIndex m = 0; m < X2->nmodes - num_cmodes_2; ++m) {
+    //     ndims_buf_2[m] = X2->ndims[modes_Z2[m]];
+    // }
+    // for(sptIndex m = X2->nmodes - num_cmodes_2; m < nmodes_Z2; ++m) {
+    //     // ndims_buf[(m - num_cmodes) + X->nmodes - num_cmodes] = Y->ndims[m];
+    //     ndims_buf_2[m] = Y2->ndims[modes_Z2[m]];
+    // }
+    // printf("ndims_buf_2: \n");
+    // sptDumpIndexArray(ndims_buf_2, nmodes_Z2, stdout);
 
     /// Each thread with a local Z_tmp
     sptSparseTensor *Z_tmp = malloc(tk * sizeof (sptSparseTensor));
@@ -2032,20 +2045,21 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
 
     // For the progress
     int fx_counter = fidx_X.len;
-    int fx_counter_2 = fidx_X2.len;
 
     // For stage parallelism
     int tk_other = 8;
     int new_tk = tk+tk_other;
     omp_set_num_threads(new_tk);
     omp_set_nested(1);
-    #pragma omp parallel sections num_threads(2) shared(Z2_tmp)
+    #pragma omp parallel sections num_threads(2) shared(Z_tmp, Z2_tmp)
     {
         #pragma omp section
         {
             sptStartTimer(stage1);
             // TC1: comp
+            /****** Start: TC1-stage 2 **********/
             computeTC(tk, fidx_X, nmodes_X, nmodes_Y, num_cmodes, Z_tmp, Y_fmode_inds, Y_ht, Y_cmode_inds, fx_counter, timer_SPA, X, &time_prep, &time_index_search, &time_spa, &time_accumulate_z, nmodes_Z);
+            /****** End: TC1-stage 2 **********/
             sptStopTimer(stage1);
         }
 
@@ -2054,13 +2068,25 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
             // s1,2,3 TC2
             sptStartTimer(stage2);
             sptSparseTensorSortIndex(X2, 1, tk_other);   // tc2-s1
+            // printf("Sorted X2:\n");
+            // sptSparseTensorStatus(X2, stdout);
+
+            buildHtY(tk_other, Y2_ht, Y2_num_fmodes, mode_order_Y2, num_cmodes_2, Y2_cmode_inds, Y2_fmode_inds, Y2_nnz, Y2, locks_2);    // tc2-s1
+            for(size_t i = 0; i < Y2_ht_size; i++) omp_destroy_lock(&locks_2[i]);
+
+            sptSparseTensorSetIndices(X2, mode_order_X2, nmodes_X2 - num_cmodes_2, &fidx_X2);
+            // printf("fidx_X2: \n");
+            // sptDumpNnzIndexVector(&fidx_X2, stdout);
+            int fx_counter_2 = fidx_X2.len;
             // printf("X2: \n");
             // sptAssert(sptDumpSparseTensor(X2, 0, stdout) == 0);
             // printf("Y2: \n");
             // sptAssert(sptDumpSparseTensor(Y2, 0, stdout) == 0);
-
-            buildHtY(tk_other, Y2_ht, Y2_num_fmodes, mode_order_Y2, num_cmodes_2, Y2_cmode_inds, Y2_fmode_inds, Y2_nnz, Y2, locks_2);    // tc2-s1
+            
+            /****** End: TC2-stage 1 **********/
+            /****** Start: TC2-stage 2 **********/
             computeTC(tk, fidx_X2, nmodes_X2, nmodes_Y2, num_cmodes_2, Z2_tmp, Y2_fmode_inds, Y2_ht, Y2_cmode_inds, fx_counter_2, timer_SPA_2, X2, &time_prep_2, &time_index_search_2, &time_spa_2, &time_accumulate_z2,nmodes_Z2); 
+            /****** End: TC2-stage 2 **********/
             sptStopTimer(stage2);
         }
     }
@@ -2070,8 +2096,8 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     double main_computation = sptElapsedTime(timer);
     total_time += main_computation;
     double spa_total = time_prep + time_index_search + time_spa + time_accumulate_z;
-    printf("[Index Search]: %.6f s\n", (time_index_search + time_prep)/spa_total * main_computation);
-    printf("[Accumulation]: %.6f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
+    // printf("[Index Search]: %.6f s\n", (time_index_search + time_prep)/spa_total * main_computation);
+    // printf("[Accumulation]: %.6f s\n", (time_spa + time_accumulate_z)/spa_total * main_computation);
 
     sptStartTimer(timer);
     /// Append Z_tmp to Z
@@ -2105,29 +2131,34 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     sptAssert(Z2_tmp_start[tk] == Z2_total_size);
     result = sptNewSparseTensorWithSize(Z2, nmodes_Z2, ndims_buf_2, Z2_total_size); 
     // printf("nmodes_Z2: %u\n", nmodes_Z2);
-    // printf("Init Z2: \n");
-    // sptDumpSparseTensor(Z2, 0, stdout);
 
     writeback(Z_tmp, Z, nmodes_Z, Z_tmp_start, tk); // tc1
+    // printf("Z: \n");
+    // sptSparseTensorStatus(Z, stdout);
     sptStopTimer(timer);
-    total_time += sptPrintElapsedTime(timer, "Writeback");
+    // total_time += sptPrintElapsedTime(timer, "Writeback");
+    total_time += sptElapsedTime(timer);
 
     sptStartTimer(timer);
     double summation_time = 0;
-    // printf("tk_other: %d\n", tk_other); fflush(stdout);
     omp_set_num_threads(new_tk);
     omp_set_nested(1);
     
-    #pragma omp parallel sections num_threads(2) //shared(Z2_tmp,Z2_tmp_start)
+    #pragma omp parallel sections num_threads(2)
     {
         #pragma omp section
         {
             sptStartTimer(stage1);
             // TC1 summation
+            /****** Start: TC1-stage 3 **********/
             summation(nmodes_Z, Z_tmp, Z_input, tk, timer, &summation_time, ndims_buf, Z_total_size, Z_tmp_start, Z, opt_summation);  // s5
             // printf("Summed Z: \n");
-            // sptDumpSparseTensor(Z, 0, stdout);
+            // sptSparseTensorStatus(Z, stdout);
+            /****** End: TC1-stage 3 **********/
+            
+            /****** Start: TC1-stage 4 **********/
             if(output_sorting == 1) sptSparseTensorSortIndex(Z, 1, tk); // s6
+            /****** End: TC1-stage 4 **********/
             // printf("Sorted Z: \n");
             // sptDumpSparseTensor(Z, 0, stdout);
             sptStopTimer(stage1);
@@ -2136,13 +2167,23 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
         #pragma omp section
         {
             sptStartTimer(stage2);
-            // writeback(Z2_tmp, Z2, nmodes_Z2, Z2_tmp_start, tk_other); // tc2
+            writeback(Z2_tmp, Z2, nmodes_Z2, Z2_tmp_start, tk); // tc2
+            // printf("Z2: \n");
+            // sptSparseTensorStatus(Z2, stdout);
             // printf("nmodes_Z2: %u\n", nmodes_Z2);
             // printf("Z2_tmp_start:\n");
             // for(int i=0; i< (tk + 1); ++i)
             //     printf("%llu, ", Z2_tmp_start[i]);
+
+            /****** Start: TC2-stage 3 **********/
             summation(nmodes_Z2, Z2_tmp, Z2_input, tk, timer, &summation_time, ndims_buf_2, Z2_total_size, Z2_tmp_start, &Z2, opt_summation);  
+            // printf("Summed Z: \n");
+            // sptSparseTensorStatus(Z2, stdout);
+            /****** End: TC2-stage 3 **********/
+
+            /****** Start: TC2-stage 4 **********/
             if(output_sorting == 1) sptSparseTensorSortIndex(Z2, 1, tk);
+            /****** End: TC2-stage 4 **********/
             // printf("\nZ2: \n");
             // sptDumpSparseTensor(Z2, 0, stdout);
             sptStopTimer(stage2);
@@ -2151,8 +2192,9 @@ int sptSparseTensorMulTensor2TCs(sptSparseTensor *Z, sptSparseTensor * const X, 
     }
     omp_set_num_threads(tk); 
     sptStopTimer(timer);
-    total_time += sptPrintElapsedTime(timer, "Summation+sorting");
-    printf("[Total time]: %.6f s\n", total_time);
+    // total_time += sptPrintElapsedTime(timer, "Summation+sorting");
+    total_time += sptElapsedTime(timer);
+    // printf("[Total time]: %.6f s\n", total_time);
     printf("\n");
 
     free(mode_order_X); free(mode_order_Y);
